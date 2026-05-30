@@ -381,7 +381,7 @@
         "app-navigate-network-selector": {
           "action": "ui.press",
           "test_id": "import-token-button",
-          "next": "ui-set-input-network",
+          "next": "wait-token-search-input",
           "intent": "Open token search input",
           "detail": "Press the wallet Import token button so Recipe v1 can validate generic text input through a real React Native TextInput.",
           "flow": "ui"
@@ -401,6 +401,15 @@
           "next": "ui-screenshot-wallet",
           "intent": "Return to wallet after input validation",
           "detail": "Close the harmless input surface before continuing generic wallet UI proof.",
+          "flow": "ui"
+        },
+        "wait-token-search-input": {
+          "action": "ui.wait_for",
+          "test_id": "input-search-asset",
+          "expected": "present",
+          "next": "ui-set-input-network",
+          "intent": "Wait for token search input",
+          "detail": "Wait until the Import Token search field is mounted before setting text.",
           "flow": "ui"
         }
       }
