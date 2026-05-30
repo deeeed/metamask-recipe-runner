@@ -317,6 +317,7 @@ const MOBILE_BRIDGE_HANDLERS: Record<string, MobileBridgeHandler> = {
   status: handleMobileStatus,
   navigate: handleMobileNavigate,
   press: handleMobilePress,
+  setInput: handleMobileSetInput,
   scroll: handleMobileScroll,
   waitFor: handleMobileWaitFor,
   hud: handleMobileHud,
@@ -359,6 +360,18 @@ async function handleMobileNavigate(payload: ActionNode, context: ActionExecutio
 async function handleMobilePress(payload: ActionNode, context: ActionExecutionContext) {
   const target = firstScalarText(payload, ['test_id', 'testID', 'selector', 'text'], 'ui.press');
   return bridgeCommand(mobileUiInput(context, 'press', payload), ['press-test-id', target]);
+}
+
+
+async function handleMobileSetInput(payload: ActionNode, context: ActionExecutionContext) {
+  const input = mobileUiInput(context, 'set_input', payload);
+  const testId = firstScalarText(payload, ['test_id', 'testID'], 'ui.set_input');
+  const value = scalarText(payload.value ?? payload.text, 'ui.set_input.value', '');
+  const result = await bridgeCommand(input, ['set-input', testId, value]);
+  if (isRecord(result) && result.ok === false) {
+    throw new Error(`ui.set_input failed for mobile testID ${testId}: ${traceText(result.error ?? result)}`);
+  }
+  return isRecord(result) ? result : { result, testId, value };
 }
 
 async function handleMobileScroll(payload: ActionNode, context: ActionExecutionContext) {

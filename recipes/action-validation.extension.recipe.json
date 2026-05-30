@@ -125,7 +125,7 @@
         },
         "wallet-read-state": {
           "action": "metamask.wallet.read_state",
-          "next": "select-account",
+          "next": "extension-account-list",
           "intent": "Read wallet state for proof",
           "detail": "Capture selected account and network state without mutating UI.",
           "flow": "wallet"
@@ -383,6 +383,33 @@
           "next": "ui-screenshot-perps",
           "intent": "Bring the extension page into view for proof",
           "detail": "Exercise the Recipe v1 scroll_into_view contract over CDP.",
+          "flow": "ui"
+        },
+        "extension-account-list": {
+          "action": "ui.navigate",
+          "hash": "/account-list",
+          "next": "extension-account-search-visible",
+          "intent": "Open a harmless extension text input surface",
+          "detail": "Navigate to the account list so Recipe v1 can validate generic text input through a real DOM input.",
+          "flow": "ui"
+        },
+        "extension-account-search-visible": {
+          "action": "ui.wait_for",
+          "selector": "[data-testid=multichain-account-list-search] input",
+          "visible": true,
+          "timeout_ms": 10000,
+          "next": "ui-set-input-account-search",
+          "intent": "Wait for the account search input",
+          "detail": "Ensure the DOM input exists before setting text.",
+          "flow": "ui"
+        },
+        "ui-set-input-account-search": {
+          "action": "ui.set_input",
+          "selector": "[data-testid=multichain-account-list-search] input",
+          "value": "Account",
+          "next": "select-account",
+          "intent": "Set a visible account search value",
+          "detail": "Exercise ui.set_input on a harmless search field without changing wallet or Perps state.",
           "flow": "ui"
         }
       }

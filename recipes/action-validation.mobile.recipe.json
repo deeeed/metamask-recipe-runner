@@ -141,7 +141,7 @@
         "app-navigate-wallet": {
           "action": "ui.navigate",
           "target": "wallet",
-          "next": "ui-wait-wallet",
+          "next": "app-navigate-network-selector",
           "intent": "Navigate to wallet home",
           "detail": "Return to a stable wallet starting screen.",
           "flow": "wallet"
@@ -376,6 +376,32 @@
           "next": "ui-screenshot-wallet",
           "intent": "Bring the wallet screen into view for proof",
           "detail": "Exercise the Recipe v1 scroll_into_view contract on React Native.",
+          "flow": "ui"
+        },
+        "app-navigate-network-selector": {
+          "action": "ui.navigate",
+          "route": "NetworkSelector",
+          "params": {},
+          "next": "ui-set-input-network",
+          "intent": "Open a harmless text input surface",
+          "detail": "Navigate to the Network selector so Recipe v1 can validate generic text input through a real React Native TextInput.",
+          "flow": "ui"
+        },
+        "ui-set-input-network": {
+          "action": "ui.set_input",
+          "test_id": "network-selector-network-search-input",
+          "value": "Sepolia",
+          "next": "return-wallet-after-input",
+          "intent": "Set a visible Network selector search value",
+          "detail": "Exercise ui.set_input on a harmless search field without changing wallet or Perps state.",
+          "flow": "ui"
+        },
+        "return-wallet-after-input": {
+          "action": "ui.navigate",
+          "target": "wallet",
+          "next": "ui-wait-wallet",
+          "intent": "Return to wallet after input validation",
+          "detail": "Close the harmless input surface before continuing generic wallet UI proof.",
           "flow": "ui"
         }
       }

@@ -13,6 +13,7 @@
     "end",
     "ui.navigate",
     "ui.press",
+    "ui.set_input",
     "ui.scroll",
     "ui.wait_for",
     "ui.screenshot",
@@ -215,6 +216,39 @@
         }
       ],
       "safety_notes": "HUD is reviewer feedback only. It must not mutate product state or carry task assertions; trace/artifacts remain authoritative."
+    },
+    "ui.set_input": {
+      "description": "Set text on an extension DOM input through the CDP UI transport.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string"
+          },
+          "test_id": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "examples": [
+        {
+          "node": {
+            "action": "ui.set_input",
+            "selector": "[data-testid=multichain-account-list-search] input",
+            "value": "Account"
+          }
+        }
+      ]
     }
   },
   "custom_actions": [
@@ -1537,6 +1571,10 @@
     {
       "action": "ui.press",
       "implementation": "@farmslot/recipe-harness/cdp-web"
+    },
+    {
+      "action": "ui.set_input",
+      "implementation": "@metamask/recipe-runner/extension/cdp-set-input"
     },
     {
       "action": "ui.scroll",

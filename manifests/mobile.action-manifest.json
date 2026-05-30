@@ -13,6 +13,7 @@
     "end",
     "ui.navigate",
     "ui.press",
+    "ui.set_input",
     "ui.scroll",
     "ui.wait_for",
     "ui.screenshot",
@@ -215,6 +216,39 @@
         }
       ],
       "safety_notes": "HUD is reviewer feedback only. It must not mutate product state or carry task assertions; trace/artifacts remain authoritative."
+    },
+    "ui.set_input": {
+      "description": "Set text on a React Native TextInput by testID through the app control bridge.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "test_id": {
+            "type": "string"
+          },
+          "testID": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "examples": [
+        {
+          "node": {
+            "action": "ui.set_input",
+            "test_id": "network-selector-network-search-input",
+            "value": "Sepolia"
+          }
+        }
+      ]
     }
   },
   "custom_actions": [
@@ -1540,6 +1574,10 @@
     {
       "action": "ui.press",
       "implementation": "@farmslot/recipe-harness/react-native-cdp"
+    },
+    {
+      "action": "ui.set_input",
+      "implementation": "@metamask/recipe-runner/mobile/react-native-set-input"
     },
     {
       "action": "ui.scroll",
