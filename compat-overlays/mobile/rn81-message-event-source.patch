@@ -1,0 +1,29 @@
+diff --git a/shim.js b/shim.js
+--- a/shim.js
++++ b/shim.js
+@@
+ if (typeof global.MessageEvent === 'undefined') {
+   global.MessageEvent =
+     require('react-native/src/private/webapis/html/events/MessageEvent').default;
+ }
+ 
++// Historical runner compatibility: React Native 0.81's MessageEvent polyfill
++// can omit the browser `source` getter expected by CDP websocket clients under
++// newer Xcode/Hermes toolchains. Keep the getter read-only and null, matching
++// browser MessageEvent semantics for non-window messages.
++if (
++  global.MessageEvent?.prototype &&
++  !Object.getOwnPropertyDescriptor(global.MessageEvent.prototype, 'source')
++) {
++  Object.defineProperty(global.MessageEvent.prototype, 'source', {
++    configurable: true,
++    enumerable: true,
++    get() {
++      return null;
++    },
++  });
++}
++
+ class AbortError extends Error {
+   constructor(message) {
+     super(message);
