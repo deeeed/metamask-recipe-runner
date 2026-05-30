@@ -27,7 +27,7 @@ runAdapter((input) => withExtensionPage(input, async (page) => {
   }
 
   const password = input.node?.password ?? await fixturePassword(input.context.projectRoot);
-  await page.fill('input[type="password"]', String(password));
+  await page.setInput('input[type="password"]', String(password));
   await page.evaluate(`(() => {
     const button = document.querySelector('button[type="submit"]') || Array.from(document.querySelectorAll('button')).find((candidate) => /unlock/i.test(candidate.innerText || candidate.textContent || ''));
     if (!button) throw new Error('Unlock button not found.');
