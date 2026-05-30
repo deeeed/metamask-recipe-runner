@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { compatibilityMode, fixtureSummary, repoShape } from './doctor.ts';
 import { runLiveAdapterScript } from './live-adapter-contract.ts';
 import { withExtensionPage } from '../live-adapters/extension/platform/cdp.mjs';
@@ -239,7 +241,7 @@ function uiInputFor(context: ActionExecutionContext, input: MetaMaskUiActionInpu
 }
 
 
-function mobileProbeOutput(status: unknown, input: MetaMaskUiActionInput) {
+function mobileProbeOutput(status: unknown, input: MetaMaskUiActionInput, projectRoot: string) {
   const entries = Array.isArray(status) ? status : [status];
   const preferredDevices = [
     input.node?.ios_simulator,
@@ -257,12 +259,17 @@ function mobileProbeOutput(status: unknown, input: MetaMaskUiActionInput) {
   const route = isRecord(selected) && isRecord(selected.route) ? selected.route : null;
   return {
     reachable: Boolean(selected),
-    bridge: 'scripts/perps/agentic/cdp-bridge.js',
+    bridge: mobileBridgePath(projectRoot),
     targetCount: entries.filter((entry) => isRecord(entry)).length,
     deviceName: isRecord(selected) && typeof selected.deviceName === 'string' ? selected.deviceName : null,
     routeName: route && typeof route.name === 'string' ? route.name : null,
     accountPresent: isRecord(selected) && isRecord(selected.account),
   };
+}
+
+function mobileBridgePath(projectRoot: string): string {
+  const injected = '.agent/recipe-harness/mobile/cdp-bridge.js';
+  return existsSync(path.join(projectRoot, injected)) ? injected : 'scripts/perps/agentic/cdp-bridge.js';
 }
 
 async function waitForMobileTarget(input: ReturnType<typeof uiInputFor>, payload: ActionNode) {
@@ -529,7 +536,7 @@ export function createMetaMaskAdapters(adapter: MetaMaskRecipeAdapter): ActionAd
       if (platform === 'mobile' && required) {
         const uiInput: MetaMaskUiActionInput = { action: 'cdp.target', nodeId: context.nodeId, node };
         const status = await bridgeCommand(uiInputFor(context, uiInput), ['status']);
-        const probe = mobileProbeOutput(status, uiInput);
+        const probe = mobileProbeOutput(status, uiInput, context.projectRoot);
         if (!probe.reachable) {
           throw new Error('cdp.target required a reachable mobile React Native bridge, but bridge status did not expose a selected app route.');
         }
