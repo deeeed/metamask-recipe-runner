@@ -70,6 +70,74 @@ function isCaptureScreenshotFailure(error) {
   return message.includes('Page.captureScreenshot') || message.includes('captureScreenshot');
 }
 
+
+async function captureDomRasterFallback(page, context, relPath, metadata, cause) {
+  const { relative, absolute } = resolveRelativeArtifactPath(context.artifactsDir, relPath);
+  await mkdir(path.dirname(absolute), { recursive: true });
+  // Use a fresh CDP session for the fallback. A timed-out Page.captureScreenshot
+  // can leave the original session with an in-flight command, which makes a
+  // subsequent Runtime.evaluate fallback unreliable even though the page is
+  // still controllable.
+  const session = await CdpSession.connect(page.target.webSocketDebuggerUrl);
+  try {
+    await session.call('Runtime.enable');
+    const result = await session.call('Runtime.evaluate', {
+    expression: `(() => new Promise((resolve, reject) => {
+      try {
+        const width = Math.max(320, Math.min(900, window.innerWidth || document.documentElement.clientWidth || 500));
+        const height = Math.max(500, Math.min(1200, window.innerHeight || document.documentElement.clientHeight || 700));
+        const clone = document.documentElement.cloneNode(true);
+        for (const element of clone.querySelectorAll('script')) element.remove();
+        const html = new XMLSerializer().serializeToString(clone);
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '"><foreignObject width="100%" height="100%">' + html + '</foreignObject></svg>';
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const context2d = canvas.getContext('2d');
+          context2d.drawImage(image, 0, 0);
+          resolve({ data: canvas.toDataURL('image/png'), width, height });
+        };
+        image.onerror = () => reject(new Error('DOM raster image load failed'));
+        image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      } catch (error) {
+        reject(error);
+      }
+    }))()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+    if (result.exceptionDetails) {
+      throw new Error(
+        result.exceptionDetails.exception?.description ??
+        result.exceptionDetails.text ??
+        'DOM raster screenshot fallback failed.',
+      );
+    }
+    const dataUrl = result.result?.value?.data;
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,')) {
+      throw new Error('DOM raster screenshot fallback did not return PNG data.');
+    }
+    await writeFile(absolute, Buffer.from(dataUrl.slice('data:image/png;base64,'.length), 'base64'));
+    return {
+      path: relative,
+      type: 'screenshot',
+      nodeId: context.nodeId,
+      label: metadata?.label ?? `${context.nodeId} screenshot`,
+      category: metadata?.category ?? 'evidence',
+      metadata: {
+        fallback: 'extension-dom-raster',
+        cdpFailure: String(cause?.message ?? cause),
+        width: result.result.value.width,
+        height: result.result.value.height,
+      },
+    };
+  } finally {
+    session.close();
+  }
+}
+
 async function captureMacScreenFallback(context, relPath, metadata, cause) {
   if (process.platform !== 'darwin') throw cause;
   const { relative, absolute } = resolveRelativeArtifactPath(context.artifactsDir, relPath);
@@ -412,18 +480,50 @@ export class ExtensionPage extends CdpWebPage {
         timeoutMs: contextOrInput.node?.timeout_ms,
         ...metadata,
       };
+      if (contextOrInput.node?.screenshot_mode === 'dom_raster' || process.env.METAMASK_RECIPE_EXTENSION_SCREENSHOT_MODE === 'dom-raster') {
+        return captureDomRasterFallback(
+          this,
+          contextOrInput.context,
+          relPath,
+          options,
+          new Error('Page.captureScreenshot skipped for requested DOM raster capture.'),
+        );
+      }
       try {
         return await super.screenshot(contextOrInput.context, relPath, options);
       } catch (error) {
         if (!isCaptureScreenshotFailure(error)) throw error;
-        return captureMacScreenFallback(contextOrInput.context, relPath, options, error);
+        try {
+          return await captureDomRasterFallback(this, contextOrInput.context, relPath, options, error);
+        } catch (fallbackError) {
+          if (!isCaptureScreenshotFailure(fallbackError)) {
+            return captureMacScreenFallback(contextOrInput.context, relPath, options, fallbackError);
+          }
+          return captureMacScreenFallback(contextOrInput.context, relPath, options, error);
+        }
       }
+    }
+    if (process.env.METAMASK_RECIPE_EXTENSION_SCREENSHOT_MODE === 'dom-raster') {
+      return captureDomRasterFallback(
+        this,
+        contextOrInput,
+        relPath,
+        metadata,
+        new Error('Page.captureScreenshot skipped for requested DOM raster capture.'),
+      );
     }
     try {
       return await super.screenshot(contextOrInput, relPath, metadata);
     } catch (error) {
       if (!isCaptureScreenshotFailure(error)) throw error;
-      return captureMacScreenFallback(contextOrInput, relPath, metadata, error);
+      try {
+        return await captureDomRasterFallback(this, contextOrInput, relPath, metadata, error);
+      } catch (fallbackError) {
+        if (!isCaptureScreenshotFailure(fallbackError)) {
+          return captureMacScreenFallback(contextOrInput, relPath, metadata, fallbackError);
+        }
+        return captureMacScreenFallback(contextOrInput, relPath, metadata, error);
+      }
     }
   }
 }
