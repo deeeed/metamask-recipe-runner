@@ -92,11 +92,25 @@ export function createDoctorReport(
 ): MetaMaskDoctorReport {
   const mode = compatibilityMode(adapter, target);
   const manifestErrors = Number(manifestValidation.summary?.errors ?? 0);
-  const status = manifestErrors > 0 || mode === 'unsupported/no bridge' ? 'FAIL' : 'PASS';
+  const status = manifestErrors > 0 || mode === 'unsupported/no bridge' ? 'fail' : 'pass';
+  const checks = [
+    {
+      id: 'manifest',
+      status: manifestErrors === 0 ? 'pass' : 'fail',
+      message: manifestErrors === 0 ? 'Action manifest is Recipe v1 compatible.' : `Action manifest has ${manifestErrors} compatibility error(s).`,
+    },
+    {
+      id: 'bridge',
+      status: mode === 'unsupported/no bridge' ? 'fail' : 'pass',
+      message: mode === 'unsupported/no bridge' ? `No ${adapter} bridge is available for this checkout.` : `${adapter} compatibility mode: ${mode}.`,
+    },
+  ] as const;
   return {
     schemaVersion: 1,
     protocolVersion: 'v1',
+    runner_protocol_version: 1,
     status,
+    checks: [...checks],
     adapter,
     target,
     runner: {

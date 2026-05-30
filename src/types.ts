@@ -12,7 +12,9 @@ export type FarmslotProtocolModule = typeof import('@farmslot/protocol');
 export interface MetaMaskDoctorReport {
   schemaVersion: 1;
   protocolVersion: 'v1';
-  status: 'PASS' | 'FAIL';
+  runner_protocol_version: 1;
+  status: 'pass' | 'fail';
+  checks: Array<{ id: string; status: 'pass' | 'fail'; message: string }>;
   adapter: MetaMaskRecipeAdapter;
   target: string;
   compatibilityMode:

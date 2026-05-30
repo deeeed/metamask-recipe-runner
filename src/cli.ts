@@ -213,7 +213,7 @@ async function handleDoctor({ options }: ParsedArgs): Promise<number> {
   const result = createDoctorReport(adapter, target, manifestValidation, actionManifestPath);
   if (optionFlag(options, 'json')) console.log(JSON.stringify(result, null, 2));
   else console.log(`${result.status} ${adapter} ${result.compatibilityMode} manifest=${actionManifestPath}`);
-  return result.status === 'PASS' ? 0 : 1;
+  return result.status === 'pass' ? 0 : 1;
 }
 
 async function handleRuntimeHealth({ options }: ParsedArgs): Promise<number> {
