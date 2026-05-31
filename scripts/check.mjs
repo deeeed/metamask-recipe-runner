@@ -8,16 +8,17 @@ const runnerDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
 );
-const farmslotRoot =
-  findFarmslotRoot(runnerDir) ?? findFarmslotRoot(process.cwd());
-if (!farmslotRoot) {
+const farmslotRoot = findFarmslotRoot(runnerDir) ?? findFarmslotRoot(process.cwd());
+const localTsc = path.join(runnerDir, 'node_modules/typescript/bin/tsc');
+const farmslotTsc = farmslotRoot
+  ? path.join(farmslotRoot, 'node_modules/typescript/bin/tsc')
+  : undefined;
+const tsc = fs.existsSync(localTsc) ? localTsc : farmslotTsc;
+if (!tsc || !fs.existsSync(tsc)) {
   throw new Error(
-    'Unable to find Farmslot root for TypeScript check. Set FARMSLOT_ROOT or run near the Farmslot checkout.',
+    'TypeScript compiler not found. Install this package normally, or set FARMSLOT_ROOT/use npm run dev:link-farmslot while co-developing Farmslot locally.',
   );
 }
-const tsc = path.join(farmslotRoot, 'node_modules/typescript/bin/tsc');
-if (!fs.existsSync(tsc))
-  throw new Error(`TypeScript compiler not found at ${tsc}`);
 const generatedTsconfig = path.join(runnerDir, '.tmp', 'tsconfig.check.json');
 fs.mkdirSync(path.dirname(generatedTsconfig), { recursive: true });
 fs.writeFileSync(
@@ -28,26 +29,7 @@ fs.writeFileSync(
       compilerOptions: {
         baseUrl: '..',
         types: ['node'],
-        typeRoots: [
-          path.relative(
-            path.dirname(generatedTsconfig),
-            path.join(farmslotRoot, 'node_modules/@types'),
-          ),
-        ],
-        paths: {
-          '@farmslot/protocol': [
-            path.relative(
-              runnerDir,
-              path.join(farmslotRoot, 'packages/protocol/src/index.ts'),
-            ),
-          ],
-          '@farmslot/recipe-harness': [
-            path.relative(
-              runnerDir,
-              path.join(farmslotRoot, 'packages/recipe-harness/src/index.ts'),
-            ),
-          ],
-        },
+        ...localTypescriptOverrides(generatedTsconfig, farmslotRoot),
       },
     },
     null,
@@ -59,6 +41,26 @@ for (const file of listFiles(runnerDir, (name) => name.endsWith('.mjs'))) {
   run(process.execPath, ['--check', file]);
 }
 validateCommittedRecipes();
+
+function localTypescriptOverrides(generatedTsconfigPath, root) {
+  if (!root) return {};
+  return {
+    typeRoots: [
+      path.relative(
+        path.dirname(generatedTsconfigPath),
+        path.join(root, 'node_modules/@types'),
+      ),
+    ],
+    paths: {
+      '@farmslot/protocol': [
+        path.relative(runnerDir, path.join(root, 'packages/protocol/src/index.ts')),
+      ],
+      '@farmslot/recipe-harness': [
+        path.relative(runnerDir, path.join(root, 'packages/recipe-harness/src/index.ts')),
+      ],
+    },
+  };
+}
 
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -161,7 +163,7 @@ function validateRecipeShape(recipe, actions) {
     return ['validate.workflow.nodes must be an object'];
   }
   const nodes = workflow.nodes;
-  if (!Object.prototype.hasOwnProperty.call(nodes, workflow.entry)) {
+  if (!Object.hasOwn(nodes, workflow.entry)) {
     failures.push(`entry node does not exist: ${workflow.entry}`);
   }
   for (const [nodeId, node] of Object.entries(nodes)) {
@@ -227,66 +229,75 @@ function validateNode(node, label, actions, nodes, failures, options = {}) {
   if (targets.length === 0)
     failures.push(`${label} must transition via next, default, or cases`);
   for (const target of targets) {
-    if (!Object.prototype.hasOwnProperty.call(nodes, target)) {
+    if (!Object.hasOwn(nodes, target)) {
       failures.push(`${label} references missing target: ${target}`);
     }
   }
 }
 
 function collectTargets(node) {
-  const targets = [];
-  if (typeof node.next === 'string' && node.next.length > 0)
-    targets.push(node.next);
-  if (typeof node.default === 'string' && node.default.length > 0)
-    targets.push(node.default);
-  if (Array.isArray(node.cases)) {
-    for (const entry of node.cases) {
-      if (
-        entry &&
-        typeof entry === 'object' &&
-        typeof entry.next === 'string'
-      ) {
-        targets.push(entry.next);
-      }
-    }
-  } else if (node.cases && typeof node.cases === 'object') {
-    for (const target of Object.values(node.cases)) {
-      if (typeof target === 'string') targets.push(target);
-    }
-  }
-  return targets;
+  return [...directTargets(node), ...caseTargets(node.cases)];
+}
+
+function directTargets(node) {
+  return [node.next, node.default].filter(isNonEmptyString);
+}
+
+function caseTargets(cases) {
+  if (Array.isArray(cases)) return arrayCaseTargets(cases);
+  if (isPlainObject(cases)) return Object.values(cases).filter(isNonEmptyString);
+  return [];
+}
+
+function arrayCaseTargets(cases) {
+  return cases
+    .filter(isPlainObject)
+    .map((entry) => entry.next)
+    .filter(isNonEmptyString);
 }
 
 function validateTerminalReachability(workflow, failures) {
   const nodes = workflow.nodes;
-  const queue = Object.prototype.hasOwnProperty.call(nodes, workflow.entry)
-    ? [workflow.entry]
-    : [];
-  const reachable = new Set();
-  let terminals = 0;
-  let reachableTerminals = 0;
-  for (const node of Object.values(nodes)) {
-    if (node?.action === 'end') terminals += 1;
+  const terminalCount = Object.values(nodes).filter(isEndNode).length;
+  const reachableTerminalCount = reachableNodes(workflow).filter(isEndNode).length;
+  if (terminalCount === 0) {
+    failures.push('workflow must include at least one end node');
+  } else if (reachableTerminalCount === 0) {
+    failures.push('workflow must have at least one reachable end node');
   }
+}
+
+function reachableNodes(workflow) {
+  const nodes = workflow.nodes;
+  const queue = Object.hasOwn(nodes, workflow.entry) ? [workflow.entry] : [];
+  const reachable = new Set();
+  const values = [];
   while (queue.length > 0) {
     const nodeId = queue.shift();
     if (!nodeId || reachable.has(nodeId)) continue;
     const node = nodes[nodeId];
-    if (!node || typeof node !== 'object') continue;
+    if (!isPlainObject(node)) continue;
     reachable.add(nodeId);
-    if (node.action === 'end') reachableTerminals += 1;
-    for (const target of collectTargets(node)) {
-      if (
-        Object.prototype.hasOwnProperty.call(nodes, target) &&
-        !reachable.has(target)
-      ) {
-        queue.push(target);
-      }
-    }
+    values.push(node);
+    queue.push(...unvisitedTargets(node, nodes, reachable));
   }
-  if (terminals === 0)
-    failures.push('workflow must include at least one end node');
-  else if (queue.length === 0 && reachableTerminals === 0) {
-    failures.push('workflow must have at least one reachable end node');
-  }
+  return values;
+}
+
+function unvisitedTargets(node, nodes, reachable) {
+  return collectTargets(node).filter(
+    (target) => Object.hasOwn(nodes, target) && !reachable.has(target),
+  );
+}
+
+function isEndNode(node) {
+  return node?.action === 'end';
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0;
 }

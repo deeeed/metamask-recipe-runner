@@ -2,11 +2,10 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { farmslotRoot, importFarmslotHarness } from './paths.ts';
+import { importFarmslotHarness, resolveLocalFarmslotRoot, resolveRequiredLocalFarmslotRoot, runnerDir } from './paths.ts';
 
-// The MetaMask runner is intentionally usable as a standalone checkout; during
-// local/skill injection, Farmslot is resolved from FARMSLOT_ROOT instead of an
-// npm install. Keep that boundary explicit here.
+// Runtime health uses package dependencies. Launching a canonical Farmslot browser
+// remains a dev-only path because it needs pool/project scripts from a checkout.
 const { CdpSession, extensionIdFromTarget, jsonGet, sleep } = await importFarmslotHarness();
 
 export interface ExtensionRuntimeOptions {
@@ -273,6 +272,11 @@ interface ResolvedSlot {
 }
 
 function resolveExtensionSlot(projectRoot: string, requestedSlot?: string): ResolvedSlot | null {
+  const farmslotRoot = resolveLocalFarmslotRoot();
+  if (!farmslotRoot) {
+    if (requestedSlot) throw new Error('Extension slot lookup requires a local Farmslot checkout when --slot is provided.');
+    return null;
+  }
   const poolsDir = path.join(farmslotRoot, 'pool');
   if (!fs.existsSync(poolsDir)) return null;
   for (const file of fs.readdirSync(poolsDir)) {
@@ -299,6 +303,7 @@ async function launchFarmslotValidationBrowser(options: {
   slotId: string;
   validationRuntimeDir: string;
 }): Promise<ExtensionRuntimeLaunchResult> {
+  const farmslotRoot = resolveRequiredLocalFarmslotRoot('Extension validation browser launch');
   const script = path.join(farmslotRoot, 'projects/metamask-extension-farm/setup/launch-validation-browser.sh');
   if (!fs.existsSync(script)) {
     throw new Error(`Canonical Extension validation launcher not found: ${script}`);
@@ -369,7 +374,7 @@ function runProcess(command: string, args: string[], options: { cwd: string; env
 async function killCdpPort(cdpPort: number): Promise<void> {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return;
   await runProcess('bash', ['-lc', `lsof -ti tcp:${cdpPort} -sTCP:LISTEN | xargs -r kill -TERM || true; sleep 1; lsof -ti tcp:${cdpPort} -sTCP:LISTEN | xargs -r kill -KILL || true`], {
-    cwd: farmslotRoot,
+    cwd: runnerDir,
     env: process.env,
     timeoutMs: 10_000,
   });

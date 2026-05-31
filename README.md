@@ -1,6 +1,6 @@
 # MetaMask Recipe Runner
 
-MetaMask-specific runner package for Farmslot Recipe Protocol v1. Canonical protocol spec: Farmslot `docs/RECIPE-PROTOCOL-V1.md` (resolved through `FARMSLOT_ROOT`, `.farmslot-root`, installed `@farmslot/*` packages, or a sibling Farmslot checkout).
+MetaMask-specific runner package for Farmslot Recipe Protocol v1. Canonical protocol spec: Farmslot `docs/RECIPE-PROTOCOL-V1.md`; this runner consumes the published `@farmslot/protocol` and `@farmslot/recipe-harness` packages, with an explicit local override only for Farmslot co-development.
 
 This project owns the MetaMask action catalog, manifests, and live adapters for
 MetaMask Mobile and Extension recipe validation. It intentionally stays outside
@@ -12,7 +12,7 @@ it into `.agent/recipe-harness/<adapter>/runner/`, and call `bin/metamask-recipe
 The shared action surface is a durable capability contract, not a checklist of
 one ticket's acceptance criteria. Add `metamask.*` actions only for
 parameterized product/domain operations that will be reused across many recipes,
-such as navigation, start-state convergence, read/assert state, placing orders,
+such as start-state convergence, read/assert state, placing orders,
 closing selected positions, or cancelling selected orders.
 
 Do not add shared actions for ticket IDs, POCs, exact test IDs, one-off copy,
@@ -71,12 +71,9 @@ before screenshot proof.
 
 ## Required environment
 
-Set `FARMSLOT_ROOT` when running directly unless `.farmslot-root` was written by
-`/recipe-harness install`:
-
-```bash
-FARMSLOT_ROOT=/path/to/farmslot bin/metamask-recipe manifest --adapter mobile --json
-```
+A normal checkout/install should resolve Farmslot through package dependencies:
+`@farmslot/protocol` and `@farmslot/recipe-harness`. `FARMSLOT_ROOT` is only a
+local-development override used while changing Farmslot and this runner together.
 
 Skills discover this runner through `METAMASK_RECIPE_RUNNER_SOURCE` or a sibling
 checkout named `metamask-recipe-runner` next to `metamask-skills`.
@@ -91,19 +88,22 @@ bin/metamask-recipe run recipes/smoke.mobile.recipe.json --adapter mobile --targ
 bin/metamask-recipe self-test --artifacts-dir /tmp/metamask-runner-self-test --json
 ```
 
-## Local editor setup
+## Local Farmslot co-development
 
 This repo imports the real Farmslot package names (`@farmslot/protocol` and
-`@farmslot/recipe-harness`). Do not commit relative `../../farmslot` TypeScript
-paths or local type shims. For local Cursor/TypeScript server resolution before
-those packages are installed from a registry, create untracked symlinks:
+`@farmslot/recipe-harness`) and expects them to be installed like normal runtime
+dependencies. Do not commit relative `../../farmslot` TypeScript paths or local
+type shims.
+
+When actively changing Farmslot packages before publishing, opt into local
+symlinks explicitly:
 
 ```bash
-FARMSLOT_ROOT=/path/to/farmslot npm run setup:local-types
+FARMSLOT_ROOT=/path/to/farmslot npm run dev:link-farmslot
 ```
 
-The check script also resolves Farmslot through `FARMSLOT_ROOT` or a sibling
-checkout and writes only an ignored `.tmp/tsconfig.check.json`.
+The check script can also resolve a sibling/local Farmslot checkout and writes
+only an ignored `.tmp/tsconfig.check.json`.
 
 
 ## Recipe quality follow-up: composed start states
@@ -127,7 +127,7 @@ Proof recipes should then record only the AC-specific interaction while setup re
 
 ```bash
 npm run check
-FARMSLOT_ROOT=/path/to/farmslot npm run self-test
+npm run self-test
 ```
 
 For proof-capable actions, run the action-validation recipes on live Mobile and

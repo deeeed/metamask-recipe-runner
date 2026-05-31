@@ -38,7 +38,7 @@ function selectedItems(input, items) {
   });
 }
 
-export async function navigatePerps(input) {
+async function navigatePerps(input) {
   const selected = String(input.node?.target ?? input.node?.destination ?? (input.node?.market || input.node?.symbol ? 'market' : 'home')).toLowerCase();
   return withExtensionPage(input, async (page) => {
     if (selected === 'home' || selected === 'perps' || selected === 'perps_home') {
@@ -677,7 +677,6 @@ export async function teardownState(input) {
 }
 
 const DIRECT_ACTIONS = new Map([
-  ['metamask.perps.navigate', navigatePerps],
   ['metamask.perps.read_positions', readPositions],
   ['metamask.perps.read_orders', readOrders],
   ['metamask.perps.close_positions', closePositions],

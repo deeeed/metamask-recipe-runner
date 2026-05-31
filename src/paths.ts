@@ -5,9 +5,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { FarmslotHarnessModule, FarmslotProtocolModule, MetaMaskRecipeAdapter } from './types.ts';
 
 export const runnerDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const farmslotRoot = resolveFarmslotRoot();
 
-function resolveFarmslotRoot() {
+export function resolveLocalFarmslotRoot() {
   const candidates = [
     process.env.FARMSLOT_ROOT,
     readConfiguredFarmslotRoot(),
@@ -15,12 +14,17 @@ function resolveFarmslotRoot() {
     findFarmslotRoot(process.cwd()),
   ].filter(Boolean);
   const root = candidates[0];
+  return root ? path.resolve(root) : undefined;
+}
+
+export function resolveRequiredLocalFarmslotRoot(reason: string) {
+  const root = resolveLocalFarmslotRoot();
   if (!root) {
     throw new Error(
-      'MetaMask recipe runner requires Farmslot. Set FARMSLOT_ROOT or install through /recipe-harness so runner/.farmslot-root is configured.',
+      `${reason} requires a local Farmslot checkout. Set FARMSLOT_ROOT or create .farmslot-root for this dev-only path.`,
     );
   }
-  return path.resolve(root);
+  return root;
 }
 
 function readConfiguredFarmslotRoot() {
@@ -33,22 +37,19 @@ function readConfiguredFarmslotRoot() {
 function findFarmslotRoot(start) {
   let dir = path.resolve(start);
   while (dir !== path.dirname(dir)) {
-    if (
-      fs.existsSync(path.join(dir, 'packages/recipe-harness/package.json')) &&
-      fs.existsSync(path.join(dir, 'packages/protocol/package.json'))
-    ) {
-      return dir;
-    }
+    if (isFarmslotRoot(dir)) return dir;
     const sibling = path.join(dir, 'farmslot');
-    if (
-      fs.existsSync(path.join(sibling, 'packages/recipe-harness/package.json')) &&
-      fs.existsSync(path.join(sibling, 'packages/protocol/package.json'))
-    ) {
-      return sibling;
-    }
+    if (isFarmslotRoot(sibling)) return sibling;
     dir = path.dirname(dir);
   }
   return undefined;
+}
+
+function isFarmslotRoot(candidate) {
+  return (
+    fs.existsSync(path.join(candidate, 'packages/recipe-harness/package.json')) &&
+    fs.existsSync(path.join(candidate, 'packages/protocol/package.json'))
+  );
 }
 
 export function assertAdapter(adapter: unknown): asserts adapter is MetaMaskRecipeAdapter {
@@ -70,17 +71,38 @@ export function readJson(file: string): unknown {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-// The runner is intentionally usable as a standalone checkout while Farmslot is
-// still local source. Import the canonical package names from the resolved
-// Farmslot root instead of committing absolute or developer-specific paths.
 export async function importFarmslotHarness(): Promise<FarmslotHarnessModule> {
-  return import(
-    pathToFileURL(path.join(farmslotRoot, 'packages/recipe-harness/src/index.ts')).href
+  return importFarmslotPackage(
+    '@farmslot/recipe-harness',
+    'packages/recipe-harness/src/index.ts',
   ) as Promise<FarmslotHarnessModule>;
 }
 
 export async function importFarmslotProtocol(): Promise<FarmslotProtocolModule> {
-  return import(
-    pathToFileURL(path.join(farmslotRoot, 'packages/protocol/src/index.ts')).href
+  return importFarmslotPackage(
+    '@farmslot/protocol',
+    'packages/protocol/src/index.ts',
   ) as Promise<FarmslotProtocolModule>;
+}
+
+async function importFarmslotPackage(packageName: string, localSourceEntry: string) {
+  try {
+    return await import(packageName);
+  } catch (error) {
+    if (!isMissingPackageError(error, packageName)) throw error;
+  }
+
+  const root = resolveLocalFarmslotRoot();
+  if (!root) {
+    throw new Error(
+      `${packageName} is not installed. Install @farmslot/* packages normally, or set FARMSLOT_ROOT/use npm run dev:link-farmslot while co-developing Farmslot locally.`,
+    );
+  }
+  return import(pathToFileURL(path.join(root, localSourceEntry)).href);
+}
+
+function isMissingPackageError(error: unknown, packageName: string) {
+  if (!(error instanceof Error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ERR_MODULE_NOT_FOUND' && error.message.includes(packageName);
 }

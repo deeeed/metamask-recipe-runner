@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { evalAsync, evalSync, navigate, runAdapter } from '../platform/bridge.mjs';
+import { evalAsync, navigate, runAdapter } from '../platform/bridge.mjs';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -148,17 +148,21 @@ function redactOrder(order) {
 }
 
 function parsePrice(value) {
-  const match = String(value ?? '').replace(/[$,]/g, '').match(/[0-9]+(?:[.][0-9]+)?/);
-  const parsed = Number(match?.[0] ?? 0);
+  const priceMatch = /\d+(?:\.\d+)?/.exec(String(value ?? '').replace(/[$,]/g, ''));
+  const parsed = Number(priceMatch?.[0] ?? 0);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 async function readCurrentMarketPrice(input, symbol, explicitPrice) {
-  if (explicitPrice !== undefined && explicitPrice !== null && explicitPrice !== '') {
-    const parsed = parsePrice(explicitPrice);
-    if (parsed) return parsed;
-    throw new Error(`Invalid explicit current price for ${symbol}: ${String(explicitPrice)}`);
+  if (explicitPrice === undefined || explicitPrice === null || explicitPrice === '') {
+    return readControllerMarketPrice(input, symbol);
   }
+  const parsed = parsePrice(explicitPrice);
+  if (parsed) return parsed;
+  throw new Error(`Invalid explicit current price for ${symbol}: ${String(explicitPrice)}`);
+}
+
+async function readControllerMarketPrice(input, symbol) {
   const market = await evalAsync(
     input,
     `Engine.context.PerpsController.getMarketDataWithPrices().then(function(markets){
@@ -172,6 +176,42 @@ async function readCurrentMarketPrice(input, symbol, explicitPrice) {
   throw new Error(`Unable to determine current Perps price for ${symbol}.`);
 }
 
+function hasNodeValue(input, snakeName, camelName = snakeName) {
+  const node = input.node ?? {};
+  return Object.hasOwn(node, snakeName) || Object.hasOwn(node, camelName);
+}
+
+function nodeValue(input, snakeName, camelName = snakeName) {
+  return input.node?.[snakeName] ?? input.node?.[camelName];
+}
+
+async function currentPriceForCloseAttempt(input, symbol) {
+  if (hasNodeValue(input, 'price_at_calculation', 'priceAtCalculation')) {
+    return Number(nodeValue(input, 'price_at_calculation', 'priceAtCalculation'));
+  }
+  if (hasNodeValue(input, 'current_price', 'currentPrice')) {
+    return readCurrentMarketPrice(input, symbol, nodeValue(input, 'current_price', 'currentPrice'));
+  }
+  return readCurrentMarketPrice(input, symbol);
+}
+
+async function currentPriceForOrder(input, symbol) {
+  if (hasNodeValue(input, 'current_price', 'currentPrice')) {
+    return readCurrentMarketPrice(input, symbol, nodeValue(input, 'current_price', 'currentPrice'));
+  }
+  return readCurrentMarketPrice(input, symbol);
+}
+
+function orderSideIsBuy(side) {
+  if (side === 'short') return false;
+  return true;
+}
+
+function defaultNavigationTarget(source) {
+  if (source?.market || source?.symbol) return 'market';
+  return 'home';
+}
+
 function isTransientClosePriceError(result) {
   const message = String(result?.error ?? result?.message ?? '');
   // We retry local pricing/slippage races only. "Price too far from oracle"
@@ -180,8 +220,10 @@ function isTransientClosePriceError(result) {
   return /IOC_CANCEL|Slippage/i.test(message);
 }
 
-export async function navigatePerps(input) {
-  const selected = String(input.node?.target ?? input.node?.destination ?? (input.node?.market || input.node?.symbol ? 'market' : 'home')).toLowerCase();
+async function navigatePerps(input) {
+  const selected = String(
+    input.node?.target ?? input.node?.destination ?? defaultNavigationTarget(input.node),
+  ).toLowerCase();
   if (selected === 'home' || selected === 'perps' || selected === 'perps_home') {
     const navigation = await navigate(input, 'PerpsMarketListView', {});
     return { action: input.action, target: selected, navigation, proofPath: 'agentic-navigation' };
@@ -233,7 +275,9 @@ function closePositionParams(input, position) {
     position,
   };
   if (Number.isFinite(maxSlippageBps)) params.maxSlippageBps = maxSlippageBps;
-  if (input.node?.price_at_calculation !== undefined) params.priceAtCalculation = Number(input.node.price_at_calculation);
+  if (hasNodeValue(input, 'price_at_calculation', 'priceAtCalculation')) {
+    params.priceAtCalculation = Number(nodeValue(input, 'price_at_calculation', 'priceAtCalculation'));
+  }
   return params;
 }
 
@@ -248,11 +292,7 @@ async function closePositionItem(input, position) {
     const currentPosition = currentPositions.find((candidate) => symbolForItem(candidate) === baseParams.symbol);
     if (!currentPosition) return { symbol: baseParams.symbol, result: { success: true, alreadyClosed: true }, attempts };
 
-    const priceAtCalculation = input.node?.price_at_calculation !== undefined
-      ? Number(input.node.price_at_calculation)
-      : input.node?.current_price !== undefined
-      ? await readCurrentMarketPrice(input, baseParams.symbol, input.node.current_price)
-      : await readCurrentMarketPrice(input, baseParams.symbol);
+    const priceAtCalculation = await currentPriceForCloseAttempt(input, baseParams.symbol);
     const params = { ...baseParams, position: currentPosition, priceAtCalculation };
     const result = await evalAsync(
       input,
@@ -260,9 +300,15 @@ async function closePositionItem(input, position) {
     );
     attempts.push({ attempt, priceAtCalculation, result });
     lastResult = result;
-    if (!result || result.success !== false) return { symbol: params.symbol, result, attempts };
-    if (!isTransientClosePriceError(result)) break;
-    await sleep(retryDelayMs);
+    if (result?.success === false) {
+      if (isTransientClosePriceError(result)) {
+        await sleep(retryDelayMs);
+      } else {
+        break;
+      }
+    } else {
+      return { symbol: params.symbol, result, attempts };
+    }
   }
   throw new Error(`Failed to close ${baseParams.symbol}: ${lastResult?.error || JSON.stringify(lastResult)} attempts=${JSON.stringify(attempts)}`);
 }
@@ -339,12 +385,10 @@ export async function placeOrder(input) {
   const size = String(input.node?.size ?? '0.0001');
   const leverage = Number(input.node?.leverage ?? 3);
   const maxSlippageBps = Number(input.node?.max_slippage_bps ?? input.node?.maxSlippageBps ?? 300);
-  const isBuy = side !== 'short';
-  const currentPrice = input.node?.current_price !== undefined
-    ? await readCurrentMarketPrice(input, symbol, input.node.current_price)
-    : await readCurrentMarketPrice(input, symbol);
+  const isBuy = orderSideIsBuy(side);
+  const currentPrice = await currentPriceForOrder(input, symbol);
   const result = await evalAsync(input, `Engine.context.PerpsController.placeOrder({ symbol: ${JSON.stringify(symbol)}, isBuy: ${JSON.stringify(isBuy)}, orderType: 'market', size: ${JSON.stringify(size)}, usdAmount: ${JSON.stringify(amount)}, leverage: ${JSON.stringify(leverage)}, currentPrice: ${JSON.stringify(currentPrice)}, maxSlippageBps: ${JSON.stringify(maxSlippageBps)} }).then(function(r){return JSON.stringify(r)})`);
-  if (!result || result.success === false) {
+  if (result?.success === false || result == null) {
     throw new Error(`Failed to place ${symbol} ${side}: ${result?.error || JSON.stringify(result)}`);
   }
   const refresh = await evalAsync(
@@ -483,7 +527,7 @@ async function applyPositionsState(input, config) {
 
 async function applyStateNavigation(input, config) {
   if (!config.page && !config.market && !config.symbol) return { skipped: true };
-  const target = config.page ?? (config.market || config.symbol ? 'market' : 'home');
+  const target = config.page ?? defaultNavigationTarget(config);
   return navigatePerps(childInput(input, { target, market: config.market, symbol: config.symbol }));
 }
 
@@ -641,7 +685,6 @@ export async function teardownState(input) {
 }
 
 const DIRECT_ACTIONS = new Map([
-  ['metamask.perps.navigate', navigatePerps],
   ['metamask.perps.read_positions', readPerpsPositions],
   ['metamask.perps.read_orders', readOrders],
   ['metamask.perps.close_positions', closePositions],

@@ -12,7 +12,7 @@ const artifactsDir = path.resolve(artifactsDirArg);
 const manifest = JSON.parse(await readFile(path.resolve(manifestArg), 'utf8'));
 const trace = JSON.parse(await readFile(path.join(artifactsDir, 'trace.json'), 'utf8'));
 const summary = JSON.parse(await readFile(path.join(artifactsDir, 'summary.json'), 'utf8'));
-const events = Array.isArray(trace) ? trace : Array.isArray(trace.events) ? trace.events : [];
+const events = traceEvents(trace);
 const byAction = new Map();
 for (const event of events) {
   if (!event || typeof event.action !== 'string') continue;
@@ -35,9 +35,7 @@ const liveRequired = new Set([
   'metamask.wallet.setup',
   'metamask.wallet.ensure_unlocked',
   'metamask.wallet.select_account',
-  'metamask.wallet.navigate',
   'metamask.wallet.read_state',
-  'metamask.perps.navigate',
   'metamask.perps.read_positions',
   'metamask.perps.assert_positions',
   'metamask.perps.ensure_positions',
@@ -85,27 +83,27 @@ for (const action of liveRequired) {
 }
 
 const cdp = firstOutput('cdp.target');
-if (!cdp || cdp.reachable !== true) failures.push('cdp.target did not prove reachable=true');
+if (cdp?.reachable !== true) failures.push('cdp.target did not prove reachable=true');
 const fixture = firstOutput('metamask.wallet.fixture_status');
-if (!fixture || fixture.status !== 'ready') failures.push('wallet fixture_status did not report ready');
+if (fixture?.status !== 'ready') failures.push('wallet fixture_status did not report ready');
 const status = firstOutput('app.status');
-if (!status || status.compatibilityMode === 'unsupported/no bridge') failures.push('app.status did not report a supported compatibility mode');
+if (status?.compatibilityMode === 'unsupported/no bridge') failures.push('app.status did not report a supported compatibility mode');
 const readState = firstOutput('metamask.wallet.read_state');
 if (platformArg === 'mobile' && !readState?.account?.address) failures.push('mobile wallet.read_state missing account.address');
 if (platformArg === 'extension' && !readState?.state?.href) failures.push('extension wallet.read_state missing state.href');
 const readPositions = firstOutput('metamask.perps.read_positions');
-if (!readPositions || typeof readPositions.matchingCount !== 'number') failures.push('perps.read_positions missing numeric matchingCount');
+if (typeof readPositions?.matchingCount !== 'number') failures.push('perps.read_positions missing numeric matchingCount');
 const placeOrder = firstOutput('metamask.perps.place_order');
-if (!placeOrder || placeOrder.submitted !== true) failures.push('perps.place_order missing submitted=true proof');
+if (placeOrder?.submitted !== true) failures.push('perps.place_order missing submitted=true proof');
 const closePositions = firstOutput('metamask.perps.close_positions');
 const closeProof = closePositions?.close ?? closePositions;
 const closeResults = closeProof?.results ?? closeProof?.closeResult?.results;
-if (!closeProof || closeProof.closed !== true || !Array.isArray(closeResults)) {
+if (closeProof?.closed !== true || !Array.isArray(closeResults)) {
   failures.push('perps.close_positions did not prove it executed a real close operation');
 }
 const closedAssertion = (byAction.get('metamask.perps.assert_positions') ?? [])
   .find((event) => event.ok === true && event.nodeId === 'assert-closed')?.output;
-if (!closedAssertion || closedAssertion.expectedOpen !== false || closedAssertion.matchingCount !== 0) {
+if (closedAssertion?.expectedOpen !== false || closedAssertion?.matchingCount !== 0) {
   failures.push('post-close assert_positions did not prove matchingCount=0');
 }
 
@@ -134,4 +132,10 @@ console.log(JSON.stringify({ status: 'pass', actionsValidated: required.length, 
 
 function firstOutput(action) {
   return (byAction.get(action) ?? []).find((event) => event.ok === true)?.output ?? null;
+}
+
+function traceEvents(traceValue) {
+  if (Array.isArray(traceValue)) return traceValue;
+  if (Array.isArray(traceValue?.events)) return traceValue.events;
+  return [];
 }

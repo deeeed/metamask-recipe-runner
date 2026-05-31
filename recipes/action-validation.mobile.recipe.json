@@ -140,11 +140,11 @@
         },
         "app-navigate-wallet": {
           "action": "ui.navigate",
-          "target": "wallet",
           "next": "ui-wait-wallet",
           "intent": "Navigate to wallet home",
-          "detail": "Return to a stable wallet starting screen.",
-          "flow": "wallet"
+          "detail": "Use the raw React Navigation WalletView route.",
+          "flow": "wallet",
+          "route": "WalletView"
         },
         "ui-wait-wallet": {
           "action": "ui.wait_for",
@@ -181,29 +181,33 @@
           "flow": "ui"
         },
         "wallet-navigate-perps": {
-          "action": "metamask.wallet.navigate",
-          "target": "perps",
+          "action": "ui.navigate",
           "next": "perps-navigate-home",
-          "intent": "Navigate to Perps through wallet actions",
-          "detail": "Use the MetaMask wallet navigation extension point.",
-          "flow": "ui"
+          "intent": "Navigate to Perps with a raw app route",
+          "detail": "Use the raw React Navigation PerpsMarketListView route.",
+          "flow": "ui",
+          "route": "PerpsMarketListView"
         },
         "perps-navigate-home": {
-          "action": "metamask.perps.navigate",
-          "target": "home",
+          "action": "ui.navigate",
           "next": "perps-navigate-market",
-          "intent": "Open Perps home",
-          "detail": "Move into the Perps domain starting area.",
-          "flow": "perps"
+          "intent": "Open Perps home with a raw app route",
+          "detail": "Use the raw React Navigation PerpsMarketListView route.",
+          "flow": "perps",
+          "route": "PerpsMarketListView"
         },
         "perps-navigate-market": {
-          "action": "metamask.perps.navigate",
-          "target": "market",
-          "market": "ETH",
+          "action": "ui.navigate",
           "next": "start-state",
-          "intent": "Open the ETH Perps market",
-          "detail": "Navigate to the ETH market used by validation.",
-          "flow": "perps"
+          "intent": "Open the ETH Perps market with raw route params",
+          "detail": "Use the raw React Navigation PerpsMarketDetails route and market params.",
+          "flow": "perps",
+          "route": "PerpsMarketDetails",
+          "params": {
+            "market": {
+              "symbol": "ETH"
+            }
+          }
         },
         "ensure-clean": {
           "action": "metamask.perps.ensure_positions",
@@ -397,11 +401,11 @@
         },
         "return-wallet-after-input": {
           "action": "ui.navigate",
-          "target": "wallet",
           "next": "ui-screenshot-wallet",
           "intent": "Return to wallet after input validation",
-          "detail": "Close the harmless input surface before continuing generic wallet UI proof.",
-          "flow": "ui"
+          "detail": "Use the raw React Navigation WalletView route before continuing generic wallet UI proof.",
+          "flow": "ui",
+          "route": "WalletView"
         },
         "wait-token-search-input": {
           "action": "ui.wait_for",

@@ -127,8 +127,7 @@ The CLI maps `--cdp-port` to `CDP_PORT`/`RECIPE_CDP_PORT` and maps `--launch-exi
 Currently implemented Extension actions:
 
 ```text
-metamask.wallet.navigate       # target: home | perps
-metamask.perps.navigate        # target: home | market | trade
+ui.navigate                  # extension: hash/path/url
 metamask.perps.read_positions
 metamask.perps.read_orders
 metamask.perps.close_positions # primitive bulk close selected positions
@@ -144,7 +143,7 @@ ui.wait_for
 ui.screenshot
 ```
 
-Navigation is intentionally parameterized instead of one action per destination. Use `metamask.perps.navigate` with `target`, `market`, and optional `side` to move within Perps.
+Navigation is intentionally raw transport, not a semantic shortcut. Use `ui.navigate` with the actual React Native route/params or extension hash/url the app exposes.
 
 Task-specific UI styling checks, such as one ticket proving a banner color or placement, must not be implemented as reusable `metamask.perps.*` actions. Use official `ui.wait_for` for reusable presence/absence checks plus screenshot/task-local validation evidence for that ticket.
 
@@ -165,8 +164,7 @@ node.android_device | ANDROID_DEVICE
 Currently implemented Mobile actions:
 
 ```text
-metamask.wallet.navigate       # target: home | perps
-metamask.perps.navigate        # target: home | market | trade
+ui.navigate                  # mobile: route/screen + params
 metamask.perps.read_positions
 metamask.perps.read_orders
 metamask.perps.close_positions # primitive bulk close selected positions
@@ -182,6 +180,6 @@ ui.wait_for
 ui.screenshot
 ```
 
-Navigation is intentionally parameterized instead of one action per destination. Use `metamask.perps.navigate` with `target` and `market` to move within Perps.
+Navigation is intentionally raw transport, not a semantic shortcut. Use `ui.navigate` with the actual React Native route/params or extension hash/url the app exposes.
 
 Read-only position checks use `Engine.context.PerpsController.getPositions()` through Hermes CDP. State-changing Perps actions use supported controller APIs (`placeOrder`, `closePositions`) through the same app bridge rather than mutating Redux/React/local storage. UI actions delegate to existing bridge capabilities such as `press-test-id` and `scroll-view`. Screenshot capture uses `xcrun simctl io <simulator> screenshot` for iOS simulator proof.

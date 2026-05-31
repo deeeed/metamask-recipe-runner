@@ -1,10 +1,10 @@
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-import { farmslotRoot, runnerDir } from './paths.ts';
+import { resolveRequiredLocalFarmslotRoot, runnerDir } from './paths.ts';
 
 function actionFileStem(action: string) {
   return String(action).replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -144,7 +144,15 @@ function commandFor(file: string) {
   if (file.endsWith('.mjs') || file.endsWith('.js')) {
     if (!importsSourceTypescript(file)) return { command: process.execPath, args: [file] };
   }
-  const tsxBin = process.env.TSX_BIN || path.join(farmslotRoot, 'node_modules/.bin/tsx');
+  const localTsx = path.join(runnerDir, 'node_modules/.bin/tsx');
+  const tsxBin =
+    process.env.TSX_BIN ||
+    (existsSync(localTsx)
+      ? localTsx
+      : path.join(
+          resolveRequiredLocalFarmslotRoot('TypeScript live adapter execution'),
+          'node_modules/.bin/tsx',
+        ));
   return { command: tsxBin, args: [file] };
 }
 

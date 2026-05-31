@@ -7,7 +7,7 @@ Canonical protocol source of truth:
 - Farmslot `docs/RECIPE-PROTOCOL-V1.md`
 - Architecture decision: Farmslot `docs/adr/034-recipe-protocol-v1.md`
 
-Resolve the Farmslot checkout via `FARMSLOT_ROOT`, `.farmslot-root`, an installed `@farmslot/*` package, or a sibling checkout. Never hardcode a developer-specific absolute path.
+Consume Farmslot through installed `@farmslot/*` packages by default. Use `FARMSLOT_ROOT`, `.farmslot-root`, or a sibling checkout only as an explicit local-development override. Never hardcode a developer-specific absolute path.
 
 ## Hard rules
 

@@ -132,19 +132,19 @@
         },
         "app-navigate-wallet": {
           "action": "ui.navigate",
-          "target": "wallet",
           "next": "app-navigate-perps",
           "intent": "Navigate to wallet home",
-          "detail": "Return to a stable wallet starting screen.",
-          "flow": "wallet"
+          "detail": "Use the raw extension home hash route.",
+          "flow": "wallet",
+          "hash": "#/"
         },
         "app-navigate-perps": {
           "action": "ui.navigate",
-          "target": "perps",
           "next": "ui-wait-perps",
           "intent": "Open the Perps tab",
-          "detail": "Use the generic app navigation action.",
-          "flow": "ui"
+          "detail": "Use the raw extension Perps tab hash route.",
+          "flow": "ui",
+          "hash": "#/?tab=perps"
         },
         "ui-wait-perps": {
           "action": "ui.wait_for",
@@ -181,29 +181,28 @@
           "flow": "ui"
         },
         "wallet-navigate-perps": {
-          "action": "metamask.wallet.navigate",
-          "target": "perps",
+          "action": "ui.navigate",
           "next": "perps-navigate-home",
-          "intent": "Navigate to Perps through wallet actions",
-          "detail": "Use the MetaMask wallet navigation extension point.",
-          "flow": "ui"
+          "intent": "Navigate to Perps with a raw extension hash",
+          "detail": "Use the raw extension Perps tab hash route.",
+          "flow": "ui",
+          "hash": "#/?tab=perps"
         },
         "perps-navigate-home": {
-          "action": "metamask.perps.navigate",
-          "target": "home",
+          "action": "ui.navigate",
           "next": "perps-navigate-market",
-          "intent": "Open Perps home",
-          "detail": "Move into the Perps domain starting area.",
-          "flow": "perps"
+          "intent": "Open Perps home with a raw extension hash",
+          "detail": "Use the raw extension Perps tab hash route.",
+          "flow": "perps",
+          "hash": "#/?tab=perps"
         },
         "perps-navigate-market": {
-          "action": "metamask.perps.navigate",
-          "target": "market",
-          "market": "ETH",
+          "action": "ui.navigate",
           "next": "start-state",
-          "intent": "Open the ETH Perps market",
-          "detail": "Navigate to the ETH market used by validation.",
-          "flow": "perps"
+          "intent": "Open the ETH Perps market with a raw extension hash",
+          "detail": "Use the raw extension Perps market hash route.",
+          "flow": "perps",
+          "hash": "#/perps/market/ETH"
         },
         "ensure-clean": {
           "action": "metamask.perps.ensure_positions",

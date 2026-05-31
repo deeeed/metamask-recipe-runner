@@ -6,9 +6,8 @@ import path from 'node:path';
 
 import { importFarmslotHarness } from '../../../src/paths.ts';
 
-// The runner can be checked out standalone while Farmslot is supplied by
-// FARMSLOT_ROOT or the injected .agent runner delegate. Resolve the harness at
-// runtime instead of pretending @farmslot/recipe-harness is always installed.
+// Resolve the Farmslot harness through normal package dependencies by default.
+// Local Farmslot source is only a dev override handled by src/paths.ts.
 const {
   CdpSession,
   CdpWebPage,

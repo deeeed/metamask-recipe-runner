@@ -25,8 +25,8 @@ The runner now provides Mobile live adapters under grouped `live-adapters/mobile
 
 | v1 action | Product bridge/API used | Notes |
 |---|---|---|
-| `metamask.wallet.navigate` with `target: "perps"`; `metamask.perps.navigate` with `target: "home"` | `cdp-bridge.js navigate PerpsHomeView` | Parameterized navigation helper only; graph execution remains in Farmslot v1. |
-| `metamask.perps.navigate` with `target: "market"` | `cdp-bridge.js navigate PerpsMarketDetails` | Passes `{ market: { symbol } }`. |
+| `ui.navigate` with raw route/hash values for Perps/home | `cdp-bridge.js navigate PerpsHomeView` | Raw navigation transport only; the agent supplies route/hash params and graph execution remains in Farmslot v1. |
+| `ui.navigate` with raw route/hash values for a market | `cdp-bridge.js navigate PerpsMarketDetails` | Passes raw React Navigation params such as `{ market: { symbol } }`, or the matching extension hash. |
 | `metamask.perps.read_positions` | `Engine.context.PerpsController.getPositions()` | Read-only live position proof with selector params. |
 | `metamask.perps.read_orders` | `Engine.context.PerpsController.getOpenOrders()` | Read-only live order proof with selector params. |
 | `metamask.perps.assert_positions` | `getPositions()` polling | Read-only assertion over the selected position set. |

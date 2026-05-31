@@ -40,7 +40,6 @@ function simpleAdapter(action: string, executor: ActionExecutor): ActionAdapter 
 }
 
 const LIVE_ONLY_PERPS_ACTIONS = new Set([
-  'metamask.perps.navigate',
   'metamask.perps.read_positions',
   'metamask.perps.ensure_positions',
   'metamask.perps.assert_positions',
@@ -57,7 +56,6 @@ const LIVE_ONLY_WALLET_ACTIONS = new Set([
   'metamask.wallet.setup',
   'metamask.wallet.ensure_unlocked',
   'metamask.wallet.select_account',
-  'metamask.wallet.navigate',
   'metamask.wallet.read_state',
 ]);
 const LIVE_ONLY_APP_ACTIONS = new Set(['ui.navigate']);
@@ -100,6 +98,13 @@ async function runLiveFirst(
   };
 }
 
+function liveAdapterPathHint(platform: MetaMaskRecipeAdapter, action: string) {
+  if (action.startsWith('metamask.')) {
+    return `live-adapters/${platform}/${action.replace(/^metamask[.]/u, '').replaceAll('.', '/')}.mjs`;
+  }
+  return `live-adapters/${platform}/${action.replaceAll('.', '/')}.mjs`;
+}
+
 async function semanticResult(
   platform: MetaMaskRecipeAdapter,
   action: string,
@@ -109,7 +114,7 @@ async function semanticResult(
   const live = await runLiveFirst(platform, action, node, context);
   if (live) return live;
   if (requiresLiveAdapter(action)) {
-    const expected = `live-adapters/${platform}/${action.replace(/^metamask[.]/u, '').replaceAll('.', '/')}.mjs`;
+    const expected = liveAdapterPathHint(platform, action);
     throw new Error(
       `${action} requires a live ${platform} adapter that drives a real supported app/API path; ` +
         `no adapter script was found or no live runtime is configured (for example ${expected}). Static placeholders are refused to avoid fabricated proof. ` +
@@ -205,12 +210,10 @@ function createMetaMaskSemanticAdapters(platform: MetaMaskRecipeAdapter): Action
     'metamask.wallet.setup',
     'metamask.wallet.ensure_unlocked',
     'metamask.wallet.select_account',
-    'metamask.wallet.navigate',
     'metamask.wallet.read_state',
   ];
   const actions = [
     ...walletActions,
-    'metamask.perps.navigate',
     'metamask.perps.read_positions',
     'metamask.perps.ensure_positions',
     'metamask.perps.assert_positions',
@@ -363,7 +366,12 @@ async function handleMobileStatus(payload: ActionNode, context: ActionExecutionC
 }
 
 async function handleMobileNavigate(payload: ActionNode, context: ActionExecutionContext) {
-  const live = await runLiveAdapterScript({ platform: 'mobile', action: 'ui.navigate', node: payload, context });
+  const live = await runLiveAdapterScript({
+    platform: 'mobile',
+    action: 'ui.navigate',
+    node: payload,
+    context,
+  });
   if (!live) throw new Error('ui.navigate requires live-adapters/mobile/ui/navigate.mjs.');
   return isRecord(live.result) ? { ...live.result, liveAdapter: live.script } : live.result;
 }

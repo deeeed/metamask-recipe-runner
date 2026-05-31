@@ -32,7 +32,7 @@ find_farmslot_root() {
 }
 
 node_can_run_source_typescript() {
-  local probe_dir probe_file harness_entry
+  local probe_dir probe_file
   probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/metamask-recipe-node-ts.XXXXXX")"
   probe_file="$probe_dir/probe.ts"
   printf 'const answer: number = 42; if (answer !== 42) process.exit(1);\n' > "$probe_file"
@@ -41,34 +41,33 @@ node_can_run_source_typescript() {
     return 1
   fi
   rm -rf "$probe_dir"
-
-  harness_entry="$FARMSLOT_ROOT/packages/recipe-harness/src/index.ts"
-  node --no-warnings --input-type=module -e "import(require('node:url').pathToFileURL(process.argv[1]).href)" "$harness_entry" >/dev/null 2>&1
 }
-
-if [ -z "${FARMSLOT_ROOT:-}" ] && [ -f "$RUNNER_DIR/.farmslot-root" ]; then
-  FARMSLOT_ROOT="$(cat "$RUNNER_DIR/.farmslot-root")"
-fi
-if [ -z "${FARMSLOT_ROOT:-}" ]; then
-  FARMSLOT_ROOT="$(find_farmslot_root "$RUNNER_DIR" || find_farmslot_root "$PWD" || true)"
-fi
-if [ -z "${FARMSLOT_ROOT:-}" ]; then
-  echo "metamask-recipe requires Farmslot. Set FARMSLOT_ROOT or install through /recipe-harness so .farmslot-root is configured." >&2
-  exit 1
-fi
-FARMSLOT_ROOT="$(cd "$FARMSLOT_ROOT" && pwd -P)"
 
 if [ -f "$RUNNER_DIR/dist/cli.js" ]; then
   exec node "$RUNNER_DIR/dist/cli.js" "$@"
+fi
+
+TSX_BIN="${TSX_BIN:-$RUNNER_DIR/node_modules/.bin/tsx}"
+if [ ! -x "$TSX_BIN" ]; then
+  if [ -z "${FARMSLOT_ROOT:-}" ] && [ -f "$RUNNER_DIR/.farmslot-root" ]; then
+    FARMSLOT_ROOT="$(cat "$RUNNER_DIR/.farmslot-root")"
+  fi
+  if [ -z "${FARMSLOT_ROOT:-}" ]; then
+    FARMSLOT_ROOT="$(find_farmslot_root "$RUNNER_DIR" || find_farmslot_root "$PWD" || true)"
+  fi
+  if [ -n "${FARMSLOT_ROOT:-}" ]; then
+    FARMSLOT_ROOT="$(cd "$FARMSLOT_ROOT" && pwd -P)"
+    TSX_BIN="$FARMSLOT_ROOT/node_modules/.bin/tsx"
+  fi
+fi
+
+if [ -x "$TSX_BIN" ]; then
+  exec "$TSX_BIN" "$RUNNER_DIR/src/cli.ts" "$@"
 fi
 
 if node_can_run_source_typescript; then
   exec node --no-warnings "$RUNNER_DIR/src/cli.ts" "$@"
 fi
 
-TSX_BIN="${TSX_BIN:-$FARMSLOT_ROOT/node_modules/.bin/tsx}"
-if [ ! -x "$TSX_BIN" ]; then
-  echo "metamask-recipe requires either a Node.js runtime with TypeScript type-stripping support or tsx from Farmslot. Set FARMSLOT_ROOT or TSX_BIN." >&2
-  exit 1
-fi
-exec "$TSX_BIN" "$RUNNER_DIR/src/cli.ts" "$@"
+echo "metamask-recipe source checkout requires dist/cli.js, Node.js TypeScript type stripping, or a local tsx binary. Install dependencies normally, or set TSX_BIN/FARMSLOT_ROOT for local Farmslot co-development." >&2
+exit 1

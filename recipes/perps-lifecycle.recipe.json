@@ -50,21 +50,27 @@
           "next": "navigate-perps"
         },
         "navigate-perps": {
-          "action": "metamask.wallet.navigate",
-          "target": "perps",
-          "intent": "Navigate to Perps",
-          "detail": "Move from wallet context into the Perps surface.",
+          "action": "ui.navigate",
+          "intent": "Navigate to Perps with raw platform routing",
+          "detail": "Mobile consumes route=PerpsMarketListView; extension consumes hash=#/?tab=perps.",
           "flow": "perps setup",
-          "next": "navigate-market"
+          "next": "navigate-market",
+          "route": "PerpsMarketListView",
+          "hash": "#/?tab=perps"
         },
         "navigate-market": {
-          "action": "metamask.perps.navigate",
-          "target": "market",
-          "market": "ETH",
-          "intent": "Open the ETH Perps market",
-          "detail": "Use ETH testnet as the deterministic lifecycle market.",
+          "action": "ui.navigate",
+          "intent": "Open the ETH Perps market with raw platform routing",
+          "detail": "Mobile consumes route=params; extension consumes hash=#/perps/market/ETH.",
           "flow": "perps setup",
-          "next": "start-state"
+          "next": "start-state",
+          "route": "PerpsMarketDetails",
+          "params": {
+            "market": {
+              "symbol": "ETH"
+            }
+          },
+          "hash": "#/perps/market/ETH"
         },
         "start-state": {
           "action": "metamask.perps.start_state",

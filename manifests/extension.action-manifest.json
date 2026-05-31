@@ -391,60 +391,6 @@
       ]
     },
     {
-      "name": "metamask.wallet.navigate",
-      "owner": "metamask",
-      "description": "extension manifest-declared action metamask.wallet.navigate.",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "const": "metamask.wallet.navigate"
-          },
-          "target": {
-            "type": "string",
-            "description": "Destination within the action domain."
-          },
-          "destination": {
-            "type": "string",
-            "description": "Alias for target."
-          },
-          "market": {
-            "type": "string",
-            "description": "Market symbol when target is market/trade."
-          },
-          "symbol": {
-            "type": "string",
-            "description": "Alias for market."
-          },
-          "side": {
-            "type": "string",
-            "enum": [
-              "long",
-              "short"
-            ],
-            "description": "Trade direction when target is trade."
-          },
-          "timeout_ms": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "action"
-        ]
-      },
-      "examples": [
-        {
-          "description": "Open Perps from wallet shell",
-          "node": {
-            "action": "metamask.wallet.navigate",
-            "target": "perps"
-          }
-        }
-      ],
-      "proof_effect": "E2E validation must record this action in trace.json; live-proof actions include liveAdapter/proofPath or target runtime output.",
-      "safety_notes": "Must not inject mid-recipe UI/app state to fabricate proof."
-    },
-    {
       "name": "metamask.wallet.read_state",
       "owner": "metamask",
       "description": "extension manifest-declared action metamask.wallet.read_state.",
@@ -464,68 +410,6 @@
           "description": "Minimal node",
           "node": {
             "action": "metamask.wallet.read_state"
-          }
-        }
-      ],
-      "proof_effect": "E2E validation must record this action in trace.json; live-proof actions include liveAdapter/proofPath or target runtime output.",
-      "safety_notes": "Must not inject mid-recipe UI/app state to fabricate proof."
-    },
-    {
-      "name": "metamask.perps.navigate",
-      "owner": "metamask",
-      "description": "extension Navigate within Perps with a target such as home, market, or trade.",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "const": "metamask.perps.navigate"
-          },
-          "target": {
-            "type": "string",
-            "description": "home | market | trade"
-          },
-          "destination": {
-            "type": "string",
-            "description": "Alias for target."
-          },
-          "market": {
-            "type": "string",
-            "description": "Single market symbol, e.g. BTC or ETH. Alias: symbol."
-          },
-          "symbol": {
-            "type": "string",
-            "description": "Alias for market."
-          },
-          "side": {
-            "type": "string",
-            "enum": [
-              "long",
-              "short"
-            ],
-            "description": "Optional position/order side filter."
-          },
-          "timeout_ms": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "action"
-        ]
-      },
-      "examples": [
-        {
-          "description": "Open Perps home",
-          "node": {
-            "action": "metamask.perps.navigate",
-            "target": "home"
-          }
-        },
-        {
-          "description": "Open BTC market",
-          "node": {
-            "action": "metamask.perps.navigate",
-            "target": "market",
-            "market": "BTC"
           }
         }
       ],
@@ -1617,16 +1501,8 @@
       "implementation": "@metamask/recipe-runner/extension/wallet"
     },
     {
-      "action": "metamask.wallet.navigate",
-      "implementation": "@metamask/recipe-runner/extension/wallet"
-    },
-    {
       "action": "metamask.wallet.read_state",
       "implementation": "@metamask/recipe-runner/extension/wallet"
-    },
-    {
-      "action": "metamask.perps.navigate",
-      "implementation": "@metamask/recipe-runner/extension/perps"
     },
     {
       "action": "metamask.perps.read_positions",

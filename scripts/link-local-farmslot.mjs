@@ -13,7 +13,7 @@ if (fs.existsSync(nodeTypes)) {
   linkPackage('@types/node', nodeTypes);
 }
 
-console.log(`Linked local Farmslot packages from ${farmslotRoot}`);
+console.log(`Dev-linked local Farmslot packages from ${farmslotRoot}`);
 
 function resolveFarmslotRoot() {
   const candidates = [
@@ -26,7 +26,7 @@ function resolveFarmslotRoot() {
     if (isFarmslotRoot(candidate)) return candidate;
   }
   throw new Error(
-    'Unable to find Farmslot root. Set FARMSLOT_ROOT=/path/to/farmslot and rerun npm run setup:local-types.',
+    'Unable to find Farmslot root. Set FARMSLOT_ROOT=/path/to/farmslot and rerun npm run dev:link-farmslot.',
   );
 }
 
