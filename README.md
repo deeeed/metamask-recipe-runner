@@ -9,6 +9,22 @@ it into `.agent/recipe-harness/<adapter>/runner/`, and call `bin/metamask-recipe
 
 ## Boundary
 
+The shared action surface is a durable capability contract, not a checklist of
+one ticket's acceptance criteria. Add `metamask.*` actions only for
+parameterized product/domain operations that will be reused across many recipes,
+such as navigation, start-state convergence, read/assert state, placing orders,
+closing selected positions, or cancelling selected orders.
+
+Do not add shared actions for ticket IDs, POCs, exact test IDs, one-off copy,
+banner/style/placement assertions, or other task-local proof details. For those
+cases, keep the recipe small and use:
+
+- official `ui.*` actions for visible user interaction and presence checks;
+- screenshot `claims` and artifacts for visual/copy/layout proof;
+- task-local composed flows in the task artifact when a helper is useful only
+  for that task;
+- safe direct read/controller calls for setup or assertions when the visible UI
+  path is not the acceptance criterion.
 
 ## HUD intent contract
 

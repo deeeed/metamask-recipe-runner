@@ -24,6 +24,7 @@ Resolve the Farmslot checkout via `FARMSLOT_ROOT`, `.farmslot-root`, an installe
 8. **Skills stay thin.** `metamask-skills` should resolve/install/invoke this runner; it must not contain a second runner, copied harness, task-specific recipes, or graph executor.
 9. **Task recipes stay task-local.** Do not commit TAT-specific or one-off proof recipes into the reusable runner catalog unless they are converted into reusable domain examples.
 10. **Fail explicitly.** Do not swallow adapter errors or return success from placeholders. Unsupported or unvalidated actions/flows should be absent from manifests/catalogs.
+11. **Shared actions are durable capabilities, not task checklists.** Never add ticket/ADR/POC/debug-specific action names, default test IDs, exact copy, styling, or placement assertions to shared manifests or live adapters. Use official `ui.*` actions, screenshot claims, task-local flows/artifacts, or safe direct read/controller calls instead. Keep `metamask.*` for parameterized domain operations useful across many tasks.
 
 ## Review checklist
 
@@ -31,6 +32,7 @@ Before claiming a runner change is ready:
 
 - Does every manifest/catalog addition follow `RECIPE-PROTOCOL-V1.md`?
 - Could an existing parameterized action/flow cover this instead of a new name?
+- Is every `metamask.*` addition a durable domain capability rather than one task's acceptance criteria?
 - Does every new `ensure_*` flow have typed params and a postcondition?
 - Does every proof-capable flow produce trace/evidence that proves the claim without setup noise?
 - Are generic capabilities left in Farmslot instead of reimplemented here?

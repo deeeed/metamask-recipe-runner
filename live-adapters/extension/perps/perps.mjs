@@ -627,83 +627,6 @@ async function assertBalance(input, config) {
 }
 
 
-function expectedBannerState(input) {
-  const raw = String(input.node?.expected ?? input.node?.state ?? 'present').toLowerCase();
-  if (['present', 'visible', 'open'].includes(raw)) return true;
-  if (['absent', 'hidden', 'none', 'not_present'].includes(raw)) return false;
-  throw new Error(`metamask.perps.assert_debug_banner received unsupported expected state: ${raw}`);
-}
-
-function extensionBannerProbeExpression(input, expectedPresent) {
-  const testId = String(input.node?.test_id ?? input.node?.testID ?? 'adr58-btc-position-banner');
-  const expectedText = String(input.node?.text ?? 'ADR58 POC: BTC POSITION DETECTED');
-  const aboveTestId = String(input.node?.above_test_id ?? input.node?.aboveTestId ?? 'perps-positions-orders-section');
-  const expectedBackground = String(input.node?.background_color ?? input.node?.backgroundColor ?? 'red');
-  const expectedTextColor = String(input.node?.text_color ?? input.node?.textColor ?? 'white');
-  const requirePlacement = input.node?.require_placement !== false;
-  return `(function(){
-    var testId = ${JSON.stringify(testId)};
-    var expectedText = ${JSON.stringify(expectedText)};
-    var aboveTestId = ${JSON.stringify(aboveTestId)};
-    var expectedBackground = ${JSON.stringify(expectedBackground)};
-    var expectedTextColor = ${JSON.stringify(expectedTextColor)};
-    var requirePlacement = ${JSON.stringify(requirePlacement)};
-    function byTestId(id) { return document.querySelector('[data-testid="' + id.replace(/"/g, '\\"') + '"]'); }
-    function normalizeColor(value) { return String(value || '').trim().toLowerCase().replaceAll(' ', ''); }
-    function colorMatches(actual, expected) {
-      var a = normalizeColor(actual);
-      var e = normalizeColor(expected);
-      if (!e) return true;
-      if (e === 'red') return ['red', '#f00', '#ff0000', 'rgb(255,0,0)', 'rgba(255,0,0,1)'].indexOf(a) !== -1;
-      if (e === 'white') return ['white', '#fff', '#ffffff', 'rgb(255,255,255)', 'rgba(255,255,255,1)'].indexOf(a) !== -1;
-      return a === e;
-    }
-    var banner = byTestId(testId);
-    if (!banner) return { present: false, testId: testId, assertion: ${JSON.stringify(expectedPresent ? 'pending' : 'pass')} };
-    var target = byTestId(aboveTestId);
-    var style = getComputedStyle(banner);
-    var bannerRect = banner.getBoundingClientRect();
-    var targetRect = target ? target.getBoundingClientRect() : null;
-    var text = String(banner.textContent || '').trim();
-    var textOk = text === expectedText;
-    var backgroundOk = colorMatches(style.backgroundColor, expectedBackground);
-    var textColorOk = colorMatches(style.color, expectedTextColor);
-    var domOrderBefore = target ? Boolean(banner.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING) : false;
-    var bboxBefore = Boolean(targetRect && bannerRect.bottom <= targetRect.top + 1);
-    var placementOk = !requirePlacement || domOrderBefore || bboxBefore;
-    return {
-      present: true,
-      testId: testId,
-      text: text,
-      textOk: textOk,
-      style: { backgroundColor: style.backgroundColor, color: style.color },
-      backgroundOk: backgroundOk,
-      textColorOk: textColorOk,
-      placement: { aboveTestId: aboveTestId, targetPresent: Boolean(target), bannerBottom: bannerRect.bottom, targetTop: targetRect ? targetRect.top : null, domOrderBefore: domOrderBefore, bboxBefore: bboxBefore, aboveTarget: placementOk },
-      assertion: textOk && backgroundOk && textColorOk && placementOk ? 'pass' : 'fail'
-    };
-  })()`;
-}
-
-export async function assertDebugBanner(input) {
-  const expectedPresent = expectedBannerState(input);
-  const timeoutMs = Number(input.node?.timeout_ms ?? 10000);
-  const deadline = Date.now() + timeoutMs;
-  let last = null;
-  return withExtensionPage(input, async (page) => {
-    while (Date.now() <= deadline) {
-      last = await page.evaluate(extensionBannerProbeExpression(input, expectedPresent));
-      if (!expectedPresent && !last.present) {
-        return { action: input.action, expected: 'absent', present: false, assertion: 'pass', proofPath: 'extension-dom-cdp' };
-      }
-      if (expectedPresent && last.present && last.assertion === 'pass') {
-        return { action: input.action, expected: 'present', ...last, proofPath: 'extension-dom-cdp' };
-      }
-      await sleep(250);
-    }
-    throw new Error(`Debug banner assertion failed after ${timeoutMs}ms: ${JSON.stringify({ expectedPresent, last })}`);
-  });
-}
 
 export async function startState(input) {
   const params = paramsForState(input);
@@ -764,7 +687,6 @@ const DIRECT_ACTIONS = new Map([
   ['metamask.perps.ensure_orders', ensureOrders],
   ['metamask.perps.start_state', startState],
   ['metamask.perps.teardown_state', teardownState],
-  ['metamask.perps.assert_debug_banner', assertDebugBanner],
 ]);
 
 function isDirectRun() {

@@ -1509,121 +1509,6 @@
       ],
       "proof_effect": "Runs in setup/teardown phase and must be visible in trace.json; proof videos can keep this as trace-only setup.",
       "safety_notes": "Composes supported app/API paths and must not mutate React/Redux/MobX/DOM/local storage to fabricate proof."
-    },
-    {
-      "name": "metamask.perps.assert_debug_banner",
-      "owner": "metamask",
-      "description": "extension Assert a task/debug banner by test id with exact text, present/absent state, style, and placement when the platform exposes it.",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "const": "metamask.perps.assert_debug_banner"
-          },
-          "expected": {
-            "type": "string",
-            "enum": [
-              "present",
-              "absent",
-              "visible",
-              "hidden",
-              "none",
-              "not_present"
-            ],
-            "description": "Whether the banner should exist."
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "present",
-              "absent",
-              "visible",
-              "hidden",
-              "none",
-              "not_present"
-            ],
-            "description": "Alias for expected."
-          },
-          "test_id": {
-            "type": "string",
-            "description": "Banner testID/data-testid. Defaults to adr58-btc-position-banner."
-          },
-          "testID": {
-            "type": "string",
-            "description": "Alias for test_id."
-          },
-          "text": {
-            "type": "string",
-            "description": "Exact banner text to assert."
-          },
-          "background_color": {
-            "type": "string",
-            "description": "Expected banner background color. Defaults to red."
-          },
-          "backgroundColor": {
-            "type": "string",
-            "description": "Alias for background_color."
-          },
-          "text_color": {
-            "type": "string",
-            "description": "Expected text color. Defaults to white."
-          },
-          "textColor": {
-            "type": "string",
-            "description": "Alias for text_color."
-          },
-          "above_test_id": {
-            "type": "string",
-            "description": "Extension placement target data-testid. Defaults to perps-positions-orders-section."
-          },
-          "aboveTestId": {
-            "type": "string",
-            "description": "Alias for above_test_id."
-          },
-          "above_text": {
-            "type": "string",
-            "description": "Mobile placement header text. Defaults to Your positions."
-          },
-          "position_header_text": {
-            "type": "string",
-            "description": "Alias for above_text."
-          },
-          "require_placement": {
-            "type": "boolean",
-            "description": "Set false only when the product cannot expose a stable placement target."
-          },
-          "timeout_ms": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "action"
-        ]
-      },
-      "examples": [
-        {
-          "description": "Assert the ADR58 BTC banner is absent before opening a BTC position",
-          "node": {
-            "action": "metamask.perps.assert_debug_banner",
-            "expected": "absent",
-            "test_id": "adr58-btc-position-banner",
-            "text": "ADR58 POC: BTC POSITION DETECTED"
-          }
-        },
-        {
-          "description": "Assert the ADR58 BTC banner is visible above positions",
-          "node": {
-            "action": "metamask.perps.assert_debug_banner",
-            "expected": "present",
-            "test_id": "adr58-btc-position-banner",
-            "text": "ADR58 POC: BTC POSITION DETECTED",
-            "background_color": "red",
-            "text_color": "white"
-          }
-        }
-      ],
-      "proof_effect": "E2E validation must pair this machine assertion with a screenshot captured from the same recipe state.",
-      "safety_notes": "Read-only visual assertion. Must not mutate DOM, React state, controller state, or storage to manufacture the banner."
     }
   ],
   "state_refs": [
@@ -1786,14 +1671,11 @@
     {
       "action": "metamask.perps.teardown_state",
       "implementation": "@metamask/recipe-runner/extension/perps-domain-dispatcher"
-    },
-    {
-      "action": "metamask.perps.assert_debug_banner",
-      "implementation": "@metamask/recipe-runner/extension/perps"
     }
   ],
   "capability_notes": {
     "official_action_scope": "This manifest is the executable contract. Recipe Protocol v1 has additional official actions, but unsupported official actions are intentionally absent until implemented and validated on this platform.",
     "ui_gesture": "Not advertised yet. Drag/swipe must not be used in production recipes until the runner exposes ui.gesture and action-validation proves it on both Mobile and Extension."
-  }
+  },
+  "action_profiles": []
 }

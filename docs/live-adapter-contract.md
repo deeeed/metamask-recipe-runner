@@ -61,6 +61,28 @@ Recipe authors should choose the layer based on what must be proven:
 | Human-visible acceptance criterion | official `ui.*` actions | Drive the actual visible path: press/tap, input/keypad, scroll into view, screenshot. Do not replace it with a controller call. |
 | Ticket-specific visual detail | task-local recipe assertions/evidence | Do not add a reusable action only for one ticket. |
 
+## Shared action-surface boundaries
+
+The manifest is a durable capability contract, not a place to encode one
+ticket's acceptance criteria. Do not add shared `metamask.*` actions for ticket
+IDs, POCs, exact test IDs, exact copy, styling, placement, or other one-off UI
+proof needs.
+
+Use:
+
+- official `ui.*` actions for reusable presence, input, scroll, and screenshot
+  behavior;
+- screenshot `claims` for visual, copy, and layout proof;
+- task-local composed flows under the task artifact directory when a ticket
+  needs a reusable helper for that ticket only;
+- safe direct CDP/controller calls for read/assert or supported setup paths,
+  never state fabrication.
+
+Add or keep a shared action only when it represents a durable parameterized
+domain capability useful across many tasks, such as `metamask.perps.start_state`,
+`metamask.perps.place_order`, `metamask.perps.close_positions`, or
+`metamask.perps.assert_positions`.
+
 `ui.scroll` is part of the current executable contract and action-validation must
 prove both normal scrolling and `scroll_into_view` before screenshot capture.
 `ui.gesture` is intentionally not advertised yet; drag/swipe proof must wait
