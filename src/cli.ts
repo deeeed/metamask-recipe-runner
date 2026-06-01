@@ -3,14 +3,20 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createDoctorReport } from './doctor.ts';
-import {
-  checkExtensionRuntimeHealth,
-  formatHealthFailure,
-  prepareExtensionRuntime,
-} from './extension-runtime.ts';
+import { ensureExtensionReady } from './extension-ensure-ready.ts';
+import { resolveExtensionId } from './extension-id.ts';
+import { decideExtensionReadiness } from './extension-runtime-decision.ts';
+// NOTE: extension-runtime.ts loads the farmslot harness at module scope, so it
+// is imported LAZILY (dynamic import) only inside the handlers that drive a live
+// runtime. Static-import it here and every command — manifest, doctor,
+// runtime-decision (no --cdp-port) — would fail to load on a checkout without
+// farmslot built. Keep this lazy.
 import { loadActionManifest, validateManifest } from './manifest.ts';
 import { assertAdapter, manifestPath, recipePath, runnerDir } from './paths.ts';
-import { createMetaMaskRunner } from './runner.ts';
+// runner.ts → adapters.ts → live-adapters/extension/platform/cdp.mjs does a
+// top-level `await importFarmslotHarness()`, so it is imported LAZILY inside
+// runRecipe only. Keeping it static would load the farmslot harness for every
+// command (manifest, doctor, runtime-decision), defeating their independence.
 import type { RecipeRunResult } from '@farmslot/recipe-harness';
 import type { MetaMaskRecipeAdapter } from './types.ts';
 
@@ -34,6 +40,9 @@ const COMMANDS: Record<string, (args: ParsedArgs) => Promise<number>> = {
   manifest: handleManifest,
   doctor: handleDoctor,
   'runtime-health': handleRuntimeHealth,
+  'runtime-decision': handleRuntimeDecision,
+  'resolve-extension': handleResolveExtension,
+  'ensure-ready': handleEnsureReady,
   run: handleRun,
   'self-test': handleSelfTest,
 };
@@ -43,6 +52,9 @@ function usage() {
   metamask-recipe manifest --adapter <mobile|extension> [--json]
   metamask-recipe doctor --adapter <mobile|extension> --target <repo> [--json]
   metamask-recipe runtime-health --adapter extension --target <repo> --cdp-port <port> [--json]
+  metamask-recipe runtime-decision --adapter extension --target <repo> [--cdp-port <port>] [--watch-log <path>] [--record] [--json]
+  metamask-recipe resolve-extension --adapter extension --target <repo> [--cdp-port <port>] [--json]
+  metamask-recipe ensure-ready --adapter extension --target <repo> --cdp-port <port> [--json]
   metamask-recipe run <recipe.json> --adapter <mobile|extension> --artifacts-dir <dir> [--project-root <repo>] [--action-manifest <path>] [--cdp-port <port>] [--slot <slot-id>] [--launch-existing-dist] [--json]
   metamask-recipe self-test [--artifacts-dir <dir>] [--json]
 `);
@@ -51,7 +63,7 @@ function usage() {
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = [];
   const options: CliOptions = {};
-  const booleanOptions = new Set(['json', 'launchExistingDist']);
+  const booleanOptions = new Set(['json', 'launchExistingDist', 'record']);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (!arg.startsWith('--')) {
@@ -129,6 +141,7 @@ async function runRecipe(
     await prepareRuntimeIfNeeded(adapter, projectRoot, runtimeOptions);
     const manifest = loadActionManifest(adapter, actionManifestPath);
     await validateManifest(manifest);
+    const { createMetaMaskRunner } = await import('./runner.ts');
     const runner = await createMetaMaskRunner(adapter, manifest);
     return await runner.run({
       recipePath: path.resolve(recipe),
@@ -148,6 +161,7 @@ async function prepareRuntimeIfNeeded(
   runtimeOptions: RuntimeOptions,
 ): Promise<void> {
   if (adapter !== 'extension' || runtimeOptions.skipExtensionRuntimePrepare === true) return;
+  const { prepareExtensionRuntime } = await import('./extension-runtime.ts');
   await prepareExtensionRuntime({
     projectRoot,
     cdpPort: runtimeOptions.cdpPort,
@@ -224,11 +238,73 @@ async function handleRuntimeHealth({ options }: ParsedArgs): Promise<number> {
     optionString(options, 'cdpPort') ?? process.env.CDP_PORT ?? process.env.RECIPE_CDP_PORT,
     'runtime-health requires --cdp-port <port>.',
   );
+  const { checkExtensionRuntimeHealth, formatHealthFailure } = await import('./extension-runtime.ts');
   const report = await checkExtensionRuntimeHealth(target, cdpPort);
   if (optionFlag(options, 'json')) console.log(JSON.stringify(report, null, 2));
   else if (report.status === 'PASS') console.log(`PASS extension runtime cdp=${cdpPort} target=${report.targetUrl}`);
   else console.error(formatHealthFailure(report, target));
   return report.status === 'PASS' ? 0 : 1;
+}
+
+async function handleRuntimeDecision({ options }: ParsedArgs): Promise<number> {
+  const adapter = adapterOption(options);
+  const target = targetPath(options);
+  if (adapter !== 'extension') {
+    // Graceful unsupported (not a throw): a host always gets a parseable answer.
+    const report = {
+      schemaVersion: 1,
+      adapter,
+      target,
+      decision: 'unknown',
+      clean: false,
+      reasonCode: 'adapter-unsupported',
+      reasons: [`runtime-decision currently applies to the extension adapter, not ${adapter}.`],
+      checks: {},
+      actions: [],
+    };
+    if (optionFlag(options, 'json')) console.log(JSON.stringify(report, null, 2));
+    else console.log(`unknown adapter-unsupported — ${report.reasons[0]}`);
+    return 0;
+  }
+  const cdpPortRaw = optionString(options, 'cdpPort') ?? process.env.CDP_PORT ?? process.env.RECIPE_CDP_PORT;
+  const cdpPort = cdpPortRaw === undefined ? undefined : parsePort(cdpPortRaw, 'runtime-decision --cdp-port must be a port.');
+  const report = await decideExtensionReadiness(target, {
+    cdpPort,
+    watchLog: optionString(options, 'watchLog'),
+    record: optionFlag(options, 'record'),
+  });
+  if (optionFlag(options, 'json')) console.log(JSON.stringify(report, null, 2));
+  else console.log(`${report.decision}${report.clean ? ' (clean)' : ''} ${report.reasonCode} — ${report.reasons[0] ?? ''}`);
+  // Exit 0 whenever advice was computed (even install/build/relaunch); the host
+  // branches on report.decision. Only invalid args / probe failure throw.
+  return 0;
+}
+
+async function handleResolveExtension({ options }: ParsedArgs): Promise<number> {
+  const adapter = adapterOption(options);
+  if (adapter !== 'extension') throw new Error('resolve-extension currently applies to the extension adapter.');
+  const target = targetPath(options);
+  const cdpPortRaw = optionString(options, 'cdpPort') ?? process.env.CDP_PORT ?? process.env.RECIPE_CDP_PORT;
+  const cdpPort = cdpPortRaw === undefined ? undefined : parsePort(cdpPortRaw, 'resolve-extension --cdp-port must be a port.');
+  const result = await resolveExtensionId(target, { cdpPort });
+  if (optionFlag(options, 'json')) console.log(JSON.stringify(result, null, 2));
+  else if (result.extensionId) console.log(result.extensionId); // bare id: easy `$(... resolve-extension ...)` capture
+  else console.error('Could not resolve a MetaMask extension id (no dist key and no single CDP extension).');
+  return result.extensionId ? 0 : 1;
+}
+
+async function handleEnsureReady({ options }: ParsedArgs): Promise<number> {
+  const adapter = adapterOption(options);
+  if (adapter !== 'extension') throw new Error('ensure-ready currently applies to the extension adapter.');
+  const target = targetPath(options);
+  const cdpPort = parsePort(
+    optionString(options, 'cdpPort') ?? process.env.CDP_PORT ?? process.env.RECIPE_CDP_PORT,
+    'ensure-ready requires --cdp-port <port>.',
+  );
+  const result = await ensureExtensionReady(target, { cdpPort });
+  if (optionFlag(options, 'json')) console.log(JSON.stringify(result, null, 2));
+  else console.log(`${result.ready ? 'READY' : 'NOT-READY'} ${result.reasonCode} — id=${result.extensionId} homeTabs ${result.homeTabs.before}→${result.homeTabs.after} (closed ${result.homeTabs.closed})`);
+  return result.ready ? 0 : 1;
 }
 
 async function handleRun({ positional, options }: ParsedArgs): Promise<number> {

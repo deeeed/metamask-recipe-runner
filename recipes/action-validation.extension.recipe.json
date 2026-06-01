@@ -8,7 +8,7 @@
       "nodes": {
         "prepare-files": {
           "action": "command",
-          "cmd": "mkdir -p .agent/recipe-action-validation && printf 'E2E_ACTION_VALIDATION extension\\n' > .agent/recipe-action-validation/probe.txt && printf '{\"platform\":\"extension\",\"ok\":true}\n' > .agent/recipe-action-validation/probe.json && printf 'extension log E2E_ACTION_VALIDATION\\n' > .agent/recipe-action-validation/validation.log && echo E2E_ACTION_VALIDATION extension",
+          "cmd": "mkdir -p temp/recipe-action-validation && printf 'E2E_ACTION_VALIDATION extension\\n' > temp/recipe-action-validation/probe.txt && printf '{\"platform\":\"extension\",\"ok\":true}\n' > temp/recipe-action-validation/probe.json && printf 'extension log E2E_ACTION_VALIDATION\\n' > temp/recipe-action-validation/validation.log && echo E2E_ACTION_VALIDATION extension",
           "next": "assert-command-exit",
           "intent": "Prepare action-validation probe files",
           "detail": "Create local files used to prove command/assert/log/artifact actions.",
@@ -35,7 +35,7 @@
         },
         "assert-file": {
           "action": "assert_file",
-          "path": ".agent/recipe-action-validation/probe.txt",
+          "path": "temp/recipe-action-validation/probe.txt",
           "contains": "E2E_ACTION_VALIDATION extension",
           "next": "assert-json",
           "intent": "Verify file assertions work",
@@ -44,7 +44,7 @@
         },
         "assert-json": {
           "action": "assert_json",
-          "path": ".agent/recipe-action-validation/probe.json",
+          "path": "temp/recipe-action-validation/probe.json",
           "assert": {
             "path": "$.platform",
             "operator": "eq",
@@ -57,7 +57,7 @@
         },
         "watch-logs": {
           "action": "watch_logs",
-          "path": ".agent/recipe-action-validation/validation.log",
+          "path": "temp/recipe-action-validation/validation.log",
           "contains": "E2E_ACTION_VALIDATION",
           "next": "index-artifacts",
           "intent": "Verify log watching works",
@@ -68,7 +68,7 @@
           "action": "index_artifacts",
           "artifacts": [
             {
-              "path": ".agent/recipe-action-validation/probe.txt",
+              "path": "temp/recipe-action-validation/probe.txt",
               "type": "log",
               "category": "debug",
               "label": "Extension action validation probe"

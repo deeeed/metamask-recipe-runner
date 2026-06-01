@@ -280,13 +280,21 @@ function resolveExtensionSlot(projectRoot: string, requestedSlot?: string): Reso
   const poolsDir = path.join(farmslotRoot, 'pool');
   if (!fs.existsSync(poolsDir)) return null;
   for (const file of fs.readdirSync(poolsDir)) {
-    if (!file.endsWith('.json')) continue;
+    // Only canonical pool files: skip backups (`*.json.bak.*`) and any non-.json,
+    // so a stale backup can't resolve a slot the live pool no longer defines.
+    if (!file.endsWith('.json') || file.includes('.bak')) continue;
     const pool = JSON.parse(fs.readFileSync(path.join(poolsDir, file), 'utf8')) as { slots?: unknown[] };
     for (const rawSlot of pool.slots ?? []) {
       if (!rawSlot || typeof rawSlot !== 'object') continue;
       const slot = rawSlot as Record<string, any>;
       if (requestedSlot && slot.id !== requestedSlot) continue;
-      if (!requestedSlot && path.resolve(String(slot.repo ?? '')) !== projectRoot) continue;
+      if (!requestedSlot) {
+        // Auto-match by repo requires an ABSOLUTE repo path. A relative entry —
+        // e.g. demo pools' "repo": "." — resolves to the runner's CWD and would
+        // spuriously shadow the real slot for whatever repo it runs in.
+        const repo = String(slot.repo ?? '');
+        if (!path.isAbsolute(repo) || path.resolve(repo) !== projectRoot) continue;
+      }
       return {
         id: String(slot.id),
         repo: path.resolve(String(slot.repo)),
