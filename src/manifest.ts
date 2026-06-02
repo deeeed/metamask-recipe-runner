@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import type { RecipeActionManifestDocument, RecipeCompatibilityResult } from '@farmslot/protocol';
+import type { RecipeActionManifestDocument, RecipeValidationResult } from '@farmslot/protocol';
 
 import { manifestPath, readJson, importFarmslotProtocol } from './paths.ts';
 import type { MetaMaskRecipeAdapter } from './types.ts';
@@ -25,7 +25,7 @@ export function loadActionManifest(
 
 export async function validateManifest(
   manifest: RecipeActionManifestDocument,
-): Promise<RecipeCompatibilityResult> {
+): Promise<RecipeValidationResult> {
   const { validateRecipeActionManifestDocument } = await importFarmslotProtocol();
   const result = validateRecipeActionManifestDocument(manifest);
   if (result.status === 'invalid') {

@@ -55,8 +55,14 @@ function localTypescriptOverrides(generatedTsconfigPath, root) {
       '@farmslot/protocol': [
         path.relative(runnerDir, path.join(root, 'packages/protocol/src/index.ts')),
       ],
+      '@farmslot/protocol/*': [
+        path.relative(runnerDir, path.join(root, 'packages/protocol/src/*')),
+      ],
       '@farmslot/recipe-harness': [
         path.relative(runnerDir, path.join(root, 'packages/recipe-harness/src/index.ts')),
+      ],
+      '@farmslot/recipe-harness/*': [
+        path.relative(runnerDir, path.join(root, 'packages/recipe-harness/src/*')),
       ],
     },
   };

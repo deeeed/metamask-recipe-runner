@@ -5,7 +5,7 @@ import type { ActionAdapter, RecipeRunner } from '@farmslot/recipe-harness';
 
 import { createMetaMaskAdapters, createMetaMaskUiTransport } from './adapters.ts';
 import { loadMetaMaskExtensionActionManifest, loadMetaMaskMobileActionManifest } from './manifest.ts';
-import { importFarmslotHarness, runnerDir } from './paths.ts';
+import { importFarmslotHarness, importFarmslotHarnessRuntimeCdp, importFarmslotHarnessRuntimeReactNativeBridge, runnerDir } from './paths.ts';
 import type { CreateMetaMaskRunnerOptions, MetaMaskRecipeAdapter } from './types.ts';
 
 export async function createMetaMaskMobileRunner(
@@ -34,9 +34,9 @@ export async function createMetaMaskRunner(
     createRecipeRunner,
     createStandardCoreAdapters,
     createStandardUiAdapters,
-    createCdpWebUiTransport,
-    createReactNativeCdpBridgeUiTransport,
   } = await importFarmslotHarness();
+  const { createCdpWebUiTransport } = await importFarmslotHarnessRuntimeCdp();
+  const { createReactNativeBridgeUiTransport } = await importFarmslotHarnessRuntimeReactNativeBridge();
   const actions = [
     ...actionManifest.supported_official_actions,
     ...(actionManifest.custom_actions ?? []).map((entry: { name: string }) => entry.name),
@@ -48,7 +48,7 @@ export async function createMetaMaskRunner(
     actions: actions.filter((action) => !projectOwnedOfficialActions.has(action)),
     transport: createMetaMaskUiTransport(adapter, {
       createCdpWebUiTransport,
-      createReactNativeCdpBridgeUiTransport,
+      createReactNativeBridgeUiTransport,
     }),
   });
   const existing = new Set([...core, ...ui].map((entry) => entry.action));

@@ -4,7 +4,10 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-import { importFarmslotHarness } from '../../../src/paths.ts';
+import {
+  importFarmslotHarnessRuntimeBrowserExtension,
+  importFarmslotHarnessRuntimeCdp,
+} from '../../../src/paths.ts';
 
 // Resolve the Farmslot harness through normal package dependencies by default.
 // Local Farmslot source is only a dev override handled by src/paths.ts.
@@ -12,11 +15,11 @@ const {
   CdpSession,
   CdpWebPage,
   dataTestId,
-  extensionIdFromTarget,
   jsonGet,
   retryJsonGet,
   sleep,
-} = await importFarmslotHarness();
+} = await importFarmslotHarnessRuntimeCdp();
+const { extensionIdFromTarget } = await importFarmslotHarnessRuntimeBrowserExtension();
 
 export { dataTestId };
 

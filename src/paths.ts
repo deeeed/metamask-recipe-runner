@@ -2,7 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import type { FarmslotHarnessModule, FarmslotProtocolModule, MetaMaskRecipeAdapter } from './types.ts';
+import type {
+  FarmslotHarnessBrowserExtensionModule,
+  FarmslotHarnessCdpModule,
+  FarmslotHarnessModule,
+  FarmslotHarnessReactNativeBridgeModule,
+  FarmslotProtocolModule,
+  MetaMaskRecipeAdapter,
+} from './types.ts';
 
 export const runnerDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -76,6 +83,27 @@ export async function importFarmslotHarness(): Promise<FarmslotHarnessModule> {
     '@farmslot/recipe-harness',
     'packages/recipe-harness/src/index.ts',
   ) as Promise<FarmslotHarnessModule>;
+}
+
+export async function importFarmslotHarnessRuntimeCdp(): Promise<FarmslotHarnessCdpModule> {
+  return importFarmslotPackage(
+    '@farmslot/recipe-harness/runtime/cdp',
+    'packages/recipe-harness/src/runtime/cdp.ts',
+  ) as Promise<FarmslotHarnessCdpModule>;
+}
+
+export async function importFarmslotHarnessRuntimeBrowserExtension(): Promise<FarmslotHarnessBrowserExtensionModule> {
+  return importFarmslotPackage(
+    '@farmslot/recipe-harness/runtime/browser-extension',
+    'packages/recipe-harness/src/runtime/browser-extension.ts',
+  ) as Promise<FarmslotHarnessBrowserExtensionModule>;
+}
+
+export async function importFarmslotHarnessRuntimeReactNativeBridge(): Promise<FarmslotHarnessReactNativeBridgeModule> {
+  return importFarmslotPackage(
+    '@farmslot/recipe-harness/runtime/react-native-bridge',
+    'packages/recipe-harness/src/runtime/react-native-bridge.ts',
+  ) as Promise<FarmslotHarnessReactNativeBridgeModule>;
 }
 
 export async function importFarmslotProtocol(): Promise<FarmslotProtocolModule> {

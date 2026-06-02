@@ -1,4 +1,4 @@
-import type { RecipeActionManifestDocument, RecipeCompatibilityResult } from '@farmslot/protocol';
+import type { RecipeActionManifestDocument, RecipeValidationResult } from '@farmslot/protocol';
 
 export type MetaMaskRecipeAdapter = 'mobile' | 'extension';
 
@@ -7,6 +7,9 @@ export interface CreateMetaMaskRunnerOptions {
 }
 
 export type FarmslotHarnessModule = typeof import('@farmslot/recipe-harness');
+export type FarmslotHarnessBrowserExtensionModule = typeof import('@farmslot/recipe-harness/runtime/browser-extension');
+export type FarmslotHarnessCdpModule = typeof import('@farmslot/recipe-harness/runtime/cdp');
+export type FarmslotHarnessReactNativeBridgeModule = typeof import('@farmslot/recipe-harness/runtime/react-native-bridge');
 export type FarmslotProtocolModule = typeof import('@farmslot/protocol');
 
 export interface MetaMaskDoctorReport {
@@ -31,5 +34,5 @@ export interface MetaMaskDoctorReport {
   };
   shape: Record<string, unknown>;
   fixture: Record<string, unknown>;
-  manifestValidation: RecipeCompatibilityResult['summary'] | Record<string, unknown>;
+  manifestValidation: RecipeValidationResult['summary'] | Record<string, unknown>;
 }

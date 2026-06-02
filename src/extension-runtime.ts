@@ -2,11 +2,12 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { importFarmslotHarness, resolveLocalFarmslotRoot, resolveRequiredLocalFarmslotRoot, runnerDir } from './paths.ts';
+import { importFarmslotHarnessRuntimeBrowserExtension, importFarmslotHarnessRuntimeCdp, resolveLocalFarmslotRoot, resolveRequiredLocalFarmslotRoot, runnerDir } from './paths.ts';
 
 // Runtime health uses package dependencies. Launching a canonical Farmslot browser
 // remains a dev-only path because it needs pool/project scripts from a checkout.
-const { CdpSession, extensionIdFromTarget, jsonGet, sleep } = await importFarmslotHarness();
+const { CdpSession, jsonGet, sleep } = await importFarmslotHarnessRuntimeCdp();
+const { extensionIdFromTarget } = await importFarmslotHarnessRuntimeBrowserExtension();
 
 export interface ExtensionRuntimeOptions {
   projectRoot: string;

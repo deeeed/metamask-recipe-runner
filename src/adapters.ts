@@ -492,13 +492,13 @@ function hudLine(enabled: boolean, label: string, value: string): string | null 
 export function createMetaMaskUiTransport(
   platform: MetaMaskRecipeAdapter,
   harness: {
-    createReactNativeCdpBridgeUiTransport: (options: unknown) => UiActionTransport;
+    createReactNativeBridgeUiTransport: (options: unknown) => UiActionTransport;
     createCdpWebUiTransport: (options: unknown) => UiActionTransport;
   },
 ): UiActionTransport {
   const base =
     platform === 'mobile'
-      ? harness.createReactNativeCdpBridgeUiTransport({ bridge: createMetaMaskMobileBridge() })
+      ? harness.createReactNativeBridgeUiTransport({ bridge: createMetaMaskMobileBridge() })
       : harness.createCdpWebUiTransport({
           async withPage(input: { action: string; node: ActionNode; context: ActionExecutionContext }, callback: (page: unknown) => Promise<unknown>) {
             return withExtensionPage(

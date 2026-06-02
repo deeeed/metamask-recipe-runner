@@ -100,7 +100,7 @@ export function createDoctorReport(
     {
       id: 'manifest',
       status: manifestErrors === 0 ? 'pass' : 'fail',
-      message: manifestErrors === 0 ? 'Action manifest is Recipe v1 compatible.' : `Action manifest has ${manifestErrors} compatibility error(s).`,
+      message: manifestErrors === 0 ? 'Action manifest is valid Recipe v1.' : `Action manifest has ${manifestErrors} validation error(s).`,
     },
     {
       id: 'bridge',

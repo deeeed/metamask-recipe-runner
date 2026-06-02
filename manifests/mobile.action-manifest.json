@@ -1417,47 +1417,47 @@
   "native_bindings": [
     {
       "action": "command",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "wait",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "assert_file",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "assert_json",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "assert_exit_code",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "assert_output",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "watch_logs",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "index_artifacts",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "end",
-      "implementation": "@farmslot/recipe-harness/core"
+      "implementation": "@farmslot/recipe-harness/adapters/core"
     },
     {
       "action": "ui.navigate",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@farmslot/recipe-harness/runtime/react-native-bridge"
     },
     {
       "action": "ui.press",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@farmslot/recipe-harness/runtime/react-native-bridge"
     },
     {
       "action": "ui.set_input",
@@ -1465,23 +1465,23 @@
     },
     {
       "action": "ui.scroll",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@farmslot/recipe-harness/runtime/react-native-bridge"
     },
     {
       "action": "ui.wait_for",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@farmslot/recipe-harness/runtime/react-native-bridge"
     },
     {
       "action": "ui.screenshot",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@farmslot/recipe-harness/runtime/react-native-bridge"
     },
     {
       "action": "app.status",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@metamask/recipe-runner/platform-status"
     },
     {
       "action": "app.hud",
-      "implementation": "@farmslot/recipe-harness/react-native-cdp"
+      "implementation": "@farmslot/recipe-harness/runtime/react-native-bridge"
     },
     {
       "action": "cdp.target",
