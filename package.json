@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "metamask-recipe": "./bin/metamask-recipe",
-    "mm-recipe": "./bin/mm-recipe",
-    "mme-recipe": "./bin/mme-recipe"
+    "metamask-recipe": "./bin/metamask-recipe"
   },
   "scripts": {
     "dev:link-farmslot": "node scripts/link-local-farmslot.mjs",
