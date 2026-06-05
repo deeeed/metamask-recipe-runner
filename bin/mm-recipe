@@ -299,11 +299,12 @@ interactive() {
   init_context
   echo "mm-recipe (${root}, port=${WATCHER_PORT:-?}, sim=${IOS_SIMULATOR:-${ANDROID_DEVICE:-${ADB_SERIAL:-?}}})"
   PS3='choose> '
-  select choice in refresh ios android status setup-wallet unlock accounts screenshot doctor actions stop quit; do
+  select choice in refresh ios android logs status setup-wallet unlock accounts screenshot doctor actions stop quit; do
     case "$choice" in
       refresh) refresh_mobile ;;
       ios) launch_ios ;;
       android) launch_android ;;
+      logs) tail_logs ;;
       status) bridge_cmd status | pipe_pretty ;;
       setup-wallet) setup_wallet ;;
       unlock) bridge_cmd unlock "$(fixture_password)" ;;
