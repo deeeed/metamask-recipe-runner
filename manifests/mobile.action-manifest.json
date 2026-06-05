@@ -59,13 +59,20 @@
       ]
     },
     "index_artifacts": {
-      "description": "Base artifact copier/indexer.",
+      "description": "Index extra recipe-authored artifacts that already exist on disk. Do not use after ui.screenshot; screenshots are registered by the runner.",
       "examples": [
         {
           "node": {
             "action": "index_artifacts",
-            "artifacts": [],
-            "intent": "Base artifact copier/indexer"
+            "artifacts": [
+              {
+                "path": "reports/result.json",
+                "type": "report",
+                "category": "validation",
+                "label": "Validation report"
+              }
+            ],
+            "intent": "Register a pre-existing report artifact"
           }
         }
       ]
@@ -180,25 +187,26 @@
       "proof_effect": "E2E validation must include a passing ui-scroll-into-view trace event with output.intoView=true."
     },
     "ui.wait_for": {
-      "description": "Wait for a UI condition through the platform adapter.",
+      "description": "Wait for a mounted React Native testID/test_id. Optional text validates text returned by that testID; text alone is not supported on Mobile.",
       "examples": [
         {
           "node": {
             "action": "ui.wait_for",
-            "text": "Perps",
-            "intent": "Wait for a UI condition through the platform adapter"
+            "test_id": "perps-home-heading",
+            "expected": "present",
+            "intent": "Wait for a React Native testID to be mounted"
           }
         }
       ]
     },
     "ui.screenshot": {
-      "description": "Capture visual evidence through the platform adapter.",
+      "description": "Capture visual evidence through the platform adapter; the runner registers the screenshot artifact automatically.",
       "examples": [
         {
           "node": {
             "action": "ui.screenshot",
-            "path": "screenshots/example.json",
-            "intent": "Capture visual evidence through the platform adapter"
+            "path": "screenshots/example.png",
+            "intent": "Capture visual evidence after a wait/assert step"
           }
         }
       ]
@@ -696,7 +704,7 @@
     {
       "name": "metamask.perps.close_positions",
       "owner": "metamask",
-      "description": "mobile Close selected live Perps positions. Use selector/mode params to close matching symbols or all positions.",
+      "description": "mobile Default to testnet for Perps mutations; mainnet is read-only unless explicitly requested. Close selected live Perps positions. Use selector/mode params to close matching symbols or all positions.",
       "schema": {
         "type": "object",
         "properties": {
@@ -759,7 +767,8 @@
           "node": {
             "action": "metamask.perps.close_positions",
             "mode": "all",
-            "intent": "Close selected Perps positions before continuing"
+            "intent": "Close selected Perps positions before continuing",
+            "network": "testnet"
           }
         },
         {
@@ -770,7 +779,8 @@
               "BTC",
               "ETH"
             ],
-            "intent": "Close selected Perps positions before continuing"
+            "intent": "Close selected Perps positions before continuing",
+            "network": "testnet"
           }
         }
       ],
@@ -780,7 +790,7 @@
     {
       "name": "metamask.perps.close_orders",
       "owner": "metamask",
-      "description": "mobile Cancel selected live Perps open orders. Use selector/mode params to cancel matching symbols or all orders.",
+      "description": "mobile Default to testnet for Perps mutations; mainnet is read-only unless explicitly requested. Cancel selected live Perps open orders. Use selector/mode params to cancel matching symbols or all orders.",
       "schema": {
         "type": "object",
         "properties": {
@@ -843,7 +853,8 @@
           "node": {
             "action": "metamask.perps.close_orders",
             "mode": "all",
-            "intent": "Cancel selected Perps orders before continuing"
+            "intent": "Cancel selected Perps orders before continuing",
+            "network": "testnet"
           }
         },
         {
@@ -851,7 +862,8 @@
           "node": {
             "action": "metamask.perps.close_orders",
             "market": "BTC",
-            "intent": "Cancel selected Perps orders before continuing"
+            "intent": "Cancel selected Perps orders before continuing",
+            "network": "testnet"
           }
         }
       ],
@@ -861,7 +873,7 @@
     {
       "name": "metamask.perps.place_order",
       "owner": "metamask",
-      "description": "mobile Place a live Perps order through a supported app/API path.",
+      "description": "mobile Place a Perps order through a supported app/API path. Default to testnet; mainnet order placement requires an explicit user request.",
       "schema": {
         "type": "object",
         "properties": {
@@ -942,7 +954,8 @@
             "side": "long",
             "notional": "10",
             "leverage": 2,
-            "intent": "Place the requested Perps order"
+            "intent": "Place the requested Perps order",
+            "network": "testnet"
           }
         }
       ],
@@ -1122,7 +1135,7 @@
     {
       "name": "metamask.perps.ensure_positions",
       "owner": "metamask",
-      "description": "mobile Higher-level wrapper that reads selected positions, closes or places when needed, then asserts final position state.",
+      "description": "mobile Default to testnet for Perps mutations; mainnet is read-only unless explicitly requested. Higher-level wrapper that reads selected positions, closes or places when needed, then asserts final position state.",
       "schema": {
         "type": "object",
         "properties": {
@@ -1197,7 +1210,8 @@
             "action": "metamask.perps.ensure_positions",
             "state": "none",
             "market": "BTC",
-            "intent": "Converge Perps positions to the requested state"
+            "intent": "Converge Perps positions to the requested state",
+            "network": "testnet"
           }
         },
         {
@@ -1206,7 +1220,8 @@
             "action": "metamask.perps.ensure_positions",
             "state": "none",
             "mode": "all",
-            "intent": "Converge Perps positions to the requested state"
+            "intent": "Converge Perps positions to the requested state",
+            "network": "testnet"
           }
         }
       ],
@@ -1216,7 +1231,7 @@
     {
       "name": "metamask.perps.ensure_orders",
       "owner": "metamask",
-      "description": "mobile Higher-level wrapper that reads selected orders, cancels when needed, then asserts final order state.",
+      "description": "mobile Default to testnet for Perps mutations; mainnet is read-only unless explicitly requested. Higher-level wrapper that reads selected orders, cancels when needed, then asserts final order state.",
       "schema": {
         "type": "object",
         "properties": {
@@ -1291,7 +1306,8 @@
             "action": "metamask.perps.ensure_orders",
             "state": "none",
             "mode": "all",
-            "intent": "Converge Perps orders to the requested state"
+            "intent": "Converge Perps orders to the requested state",
+            "network": "testnet"
           }
         }
       ],
@@ -1301,7 +1317,7 @@
     {
       "name": "metamask.perps.start_state",
       "owner": "metamask",
-      "description": "mobile Recommended configurable Perps start state that composes reusable domain operations before the proof window.",
+      "description": "mobile Default to testnet for Perps mutations; mainnet is read-only unless explicitly requested. Recommended configurable Perps start state that composes reusable domain operations before the proof window.",
       "schema": {
         "type": "object",
         "properties": {
@@ -1401,7 +1417,8 @@
             "orders": {
               "state": "none"
             },
-            "intent": "Prepare the Perps start state for the proof"
+            "intent": "Prepare the Perps start state for the proof",
+            "network": "testnet"
           }
         },
         {
@@ -1416,7 +1433,8 @@
               "notional": "10",
               "leverage": 2
             },
-            "intent": "Prepare the Perps start state for the proof"
+            "intent": "Prepare the Perps start state for the proof",
+            "network": "testnet"
           }
         }
       ],
@@ -1696,9 +1714,8 @@
       "implementation": "@metamask/recipe-runner/mobile/perps-domain-dispatcher"
     }
   ],
-  "capability_notes": {
-    "official_action_scope": "This manifest is the executable contract. Recipe Protocol v1 has additional official actions, but unsupported official actions are intentionally absent until implemented and validated on this platform.",
-    "ui_gesture": "Not advertised yet. Drag/swipe must not be used in production recipes until the runner exposes ui.gesture and action-validation proves it on both Mobile and Extension."
-  },
+  "capability_notes": [
+    "Perps safety: default to testnet for setup and order/position mutations. Mainnet is read-only unless the user explicitly requests a mainnet mutation."
+  ],
   "action_profiles": []
 }
