@@ -1,11 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { bridgeCommand, runAdapter } from '../platform/bridge.mjs';
+import { walletFixturePath } from '../../../src/paths.ts';
 
 async function fixturePassword(projectRoot) {
   const candidates = [
-    path.join(projectRoot, '.agent/wallet-fixture.json'),
-    path.join(projectRoot, 'temp/runtime/wallet-fixture.json'),
+    walletFixturePath(projectRoot),
   ];
   for (const candidate of candidates) {
     try {

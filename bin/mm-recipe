@@ -218,7 +218,8 @@ fixture_password() {
 const fs = require('fs');
 const path = require('path');
 const root = process.argv[2];
-for (const rel of ['.agent/wallet-fixture.json', 'temp/runtime/wallet-fixture.json']) {
+const runtimeDir = process.env.RECIPE_RUNTIME_DIR || 'temp/recipe/runtime';
+for (const rel of [`${runtimeDir}/wallet-fixture.json`]) {
   try {
     const data = JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8'));
     if (data.password) { process.stdout.write(String(data.password)); process.exit(0); }
@@ -230,7 +231,7 @@ NODE
 
 setup_wallet() {
   init_context
-  local fixture="${1:-.agent/wallet-fixture.json}"
+  local fixture="${1:-${RECIPE_RUNTIME_DIR:-temp/recipe/runtime}/wallet-fixture.json}"
   (cd "$root" && APP_ROOT="$root" "$setup_wallet_script" --fixture "$fixture")
 }
 
@@ -319,7 +320,7 @@ case "$cmd" in
   navigate) bridge_cmd navigate "$@" ;;
   back|go-back) bridge_cmd go-back ;;
   unlock) bridge_cmd unlock "${1:-$(fixture_password)}" ;;
-  setup-wallet|wallet-setup) setup_wallet "${1:-.agent/wallet-fixture.json}" ;;
+  setup-wallet|wallet-setup) setup_wallet "${1:-${RECIPE_RUNTIME_DIR:-temp/recipe/runtime}/wallet-fixture.json}" ;;
   accounts|list-accounts) bridge_cmd list-accounts | pipe_pretty ;;
   select-account|switch-account) bridge_cmd switch-account "${1:?address required}" ;;
   screenshot) screenshot "${1:-}" ;;

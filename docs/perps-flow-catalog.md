@@ -181,7 +181,7 @@ This flow should compose smaller actions/flows:
 4. read-only gates for feature/trading readiness
 5. `metamask.perps.ensure_orders` for order baseline
 6. `metamask.perps.ensure_positions` for position baseline
-7. raw `ui.navigate` for final page/market
+7. `ui.navigate` with a manifest-discoverable `page` alias, or raw route/hash fallback
 8. `app.hud` when visual proof should show context and it will not obscure the claim
 
 ## Base prestate profiles

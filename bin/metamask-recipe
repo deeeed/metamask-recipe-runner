@@ -48,6 +48,9 @@ if [ -f "$RUNNER_DIR/dist/cli.js" ]; then
 fi
 
 TSX_BIN="${TSX_BIN:-$RUNNER_DIR/node_modules/.bin/tsx}"
+if [ ! -x "$TSX_BIN" ] && [ -x "$RUNNER_DIR/../../.bin/tsx" ]; then
+  TSX_BIN="$RUNNER_DIR/../../.bin/tsx"
+fi
 if [ ! -x "$TSX_BIN" ]; then
   if [ -z "${FARMSLOT_ROOT:-}" ] && [ -f "$RUNNER_DIR/.farmslot-root" ]; then
     FARMSLOT_ROOT="$(cat "$RUNNER_DIR/.farmslot-root")"

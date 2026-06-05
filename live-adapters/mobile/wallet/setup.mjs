@@ -3,11 +3,11 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bridgeCommand, bridgeEnv, runAdapter } from '../platform/bridge.mjs';
+import { walletFixturePath } from '../../../src/paths.ts';
 
 async function fixtureProfile(projectRoot) {
   const candidates = [
-    path.join(projectRoot, '.agent/wallet-fixture.json'),
-    path.join(projectRoot, 'temp/runtime/wallet-fixture.json'),
+    walletFixturePath(projectRoot),
   ];
   for (const candidate of candidates) {
     try {

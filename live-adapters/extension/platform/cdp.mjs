@@ -7,6 +7,9 @@ import path from 'node:path';
 import {
   importFarmslotHarnessRuntimeBrowserExtension,
   importFarmslotHarnessRuntimeCdp,
+  extensionIdPath,
+  recipeHarnessPath,
+  walletFixturePath,
 } from '../../../src/paths.ts';
 
 // Resolve the Farmslot harness through normal package dependencies by default.
@@ -309,9 +312,7 @@ function runProcess(command, args, options) {
 
 async function findWalletFixture(projectRoot) {
   const candidates = [
-    path.join(projectRoot, 'temp/runtime/wallet-fixture.json'),
-    path.join(projectRoot, '.agent/wallet-fixture.json'),
-    path.join(projectRoot, 'scripts/perps/agentic/wallet-fixture.json'),
+    walletFixturePath(projectRoot),
   ];
   for (const candidate of candidates) {
     if (await canAccess(candidate)) return candidate;
@@ -338,9 +339,9 @@ async function launchExistingDistRuntime(input, port) {
   await cp(distDir, runtimeDist, { recursive: true, force: true, filter: (source) => !source.endsWith(`${path.sep}_metadata`) });
   await mkdir(profileDir, { recursive: true });
 
-  const fixtureScript = path.join(projectRoot, '.agent/recipe-harness/extension/scripts/wallet-fixture-state.cjs');
+  const fixtureScript = recipeHarnessPath(projectRoot, 'extension/scripts/wallet-fixture-state.cjs');
   const fixture = await findWalletFixture(projectRoot);
-  const extensionIdFile = path.join(projectRoot, 'temp/runtime/extension.id');
+  const extensionIdFile = extensionIdPath(projectRoot);
   const fixtureState = path.join(runtimeRoot, 'fixture-state.json');
   let fixtureSeeded = false;
   if (fixture && await canAccess(fixtureScript)) {
@@ -431,7 +432,7 @@ async function launchExistingDistRuntime(input, port) {
 }
 
 async function extensionIdFromFile(projectRoot) {
-  const extensionIdFile = path.join(projectRoot, 'temp/runtime/extension.id');
+  const extensionIdFile = extensionIdPath(projectRoot);
   if (!(await canAccess(extensionIdFile))) return null;
   const id = (await readFile(extensionIdFile, 'utf8')).trim();
   return /^[a-z]{32}$/u.test(id) ? id : null;
@@ -486,7 +487,7 @@ async function ensureExtensionTarget(input, port) {
       expectedExtensionId ??
       extensionIdFromAnyTarget(Array.isArray(targets) ? targets : []);
     if (!extensionId) {
-      throw new Error(`Autolaunch started Chrome on CDP port ${port}, but no extension ID could be derived from CDP targets or temp/runtime/extension.id.`);
+      throw new Error(`Autolaunch started Chrome on CDP port ${port}, but no extension ID could be derived from CDP targets or the recipe runtime extension.id.`);
     }
     await openExtensionHomePage(port, extensionId);
     targets = await retryJsonGet(`http://127.0.0.1:${port}/json/list`, 15000);

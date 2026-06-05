@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import { mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,7 +14,7 @@ import { decideExtensionReadiness } from './extension-runtime-decision.ts';
 // runtime-decision (no --cdp-port) — would fail to load on a checkout without
 // farmslot built. Keep this lazy.
 import { loadActionManifest, validateManifest } from './manifest.ts';
-import { assertAdapter, manifestPath, recipePath, runnerDir } from './paths.ts';
+import { assertAdapter, manifestPath, recipeHarnessPath, recipeHarnessRoot, recipePath, runnerDir } from './paths.ts';
 // runner.ts → adapters.ts → live-adapters/extension/platform/cdp.mjs does a
 // top-level `await importFarmslotHarness()`, so it is imported LAZILY inside
 // runRecipe only. Keeping it static would load the farmslot harness for every
@@ -42,6 +44,7 @@ const COMMANDS: Record<string, (args: ParsedArgs) => Promise<number>> = {
   doctor: handleDoctor,
   'runtime-health': handleRuntimeHealth,
   'runtime-decision': handleRuntimeDecision,
+  'runtime-launch': handleRuntimeLaunch,
   'resolve-extension': handleResolveExtension,
   'ensure-ready': handleEnsureReady,
   run: handleRun,
@@ -55,6 +58,7 @@ function usage() {
   metamask-recipe doctor --adapter <mobile|extension> --target <repo> [--json]
   metamask-recipe runtime-health --adapter extension --target <repo> --cdp-port <port> [--json]
   metamask-recipe runtime-decision --adapter extension --target <repo> [--cdp-port <port>] [--watch-log <path>] [--record] [--json]
+  metamask-recipe runtime-launch --adapter extension --target <repo> --cdp-port <port> [--chrome-user-data-dir <dir>] [--artifacts-dir <dir>] [--json]
   metamask-recipe resolve-extension --adapter extension --target <repo> [--cdp-port <port>] [--json]
   metamask-recipe ensure-ready --adapter extension --target <repo> --cdp-port <port> [--json]
   metamask-recipe run <recipe.json> --adapter <mobile|extension> --artifacts-dir <dir> [--project-root <repo>] [--action-manifest <path>] [--cdp-port <port>] [--slot <slot-id>] [--launch-existing-dist] [--json]
@@ -329,6 +333,174 @@ async function handleRuntimeHealth({ options }: ParsedArgs): Promise<number> {
   else if (report.status === 'PASS') console.log(`PASS extension runtime cdp=${cdpPort} target=${report.targetUrl}`);
   else console.error(formatHealthFailure(report, target));
   return report.status === 'PASS' ? 0 : 1;
+}
+
+
+async function handleRuntimeLaunch({ options }: ParsedArgs): Promise<number> {
+  const adapter = adapterOption(options);
+  const target = targetPath(options);
+  if (adapter !== 'extension') throw new Error('runtime-launch currently applies to the extension adapter.');
+  const cdpPort = parsePort(
+    optionString(options, 'cdpPort') ?? process.env.CDP_PORT ?? process.env.RECIPE_CDP_PORT,
+    'runtime-launch requires --cdp-port <port>.',
+  );
+  const chromeUserDataDir = optionString(options, 'chromeUserDataDir');
+  const artifactsDir = path.resolve(
+    optionString(options, 'artifactsDir') ??
+      recipeHarnessPath(target, 'extension', 'runtime-launch', new Date().toISOString().replace(/[:.]/gu, '')),
+  );
+  const liveScript = recipeHarnessPath(target, 'extension', 'scripts', 'live.sh');
+  const command = [
+    'bash',
+    liveScript,
+    '--target',
+    target,
+    '--cdp-port',
+    String(cdpPort),
+    '--launch-existing-dist',
+    '--artifacts-dir',
+    artifactsDir,
+  ];
+  if (chromeUserDataDir) command.push('--chrome-user-data-dir', chromeUserDataDir);
+
+  if (!fs.existsSync(liveScript)) {
+    const report = runtimeLaunchReport('fail', {
+      adapter,
+      target,
+      cdpPort,
+      artifactsDir,
+      reason: 'harness_live_script_missing',
+      fix: `Run /mms-recipe-harness install, then rerun: ${runtimeLaunchCommand(target, cdpPort, chromeUserDataDir)}`,
+      command,
+    });
+    printRuntimeLaunchReport(report, optionFlag(options, 'json'));
+    return 1;
+  }
+
+  fs.mkdirSync(artifactsDir, { recursive: true });
+  const result = spawnSync(command[0], command.slice(1), {
+    cwd: target,
+    encoding: 'utf8',
+    maxBuffer: 5 * 1024 * 1024,
+  });
+  const summaryPath = path.join(artifactsDir, 'summary.json');
+  const launchLogPath = path.join(artifactsDir, 'launch', 'logs', 'launch.log');
+  const chromeLogPath = path.join(artifactsDir, 'logs', 'chrome.log');
+  const summary = readJsonIfExists(summaryPath);
+  const launchLog = readTextIfExists(launchLogPath);
+  const chromeLog = readTextIfExists(chromeLogPath);
+  const text = `${result.stdout ?? ''}\n${result.stderr ?? ''}\n${launchLog}\n${chromeLog}`;
+
+  if (result.status === 0 && isRecord(summary) && summary.status === 'pass') {
+    const report = runtimeLaunchReport('pass', {
+      adapter,
+      target,
+      cdpPort,
+      artifactsDir,
+      summaryPath,
+      reason: 'runtime_ready',
+      fix: '',
+      command,
+    });
+    printRuntimeLaunchReport(report, optionFlag(options, 'json'));
+    return 0;
+  }
+
+  const classified = classifyRuntimeLaunchFailure(text, cdpPort, target, chromeUserDataDir);
+  const report = runtimeLaunchReport('fail', {
+    adapter,
+    target,
+    cdpPort,
+    artifactsDir,
+    summaryPath: fs.existsSync(summaryPath) ? summaryPath : undefined,
+    reason: classified.reason,
+    fix: classified.fix,
+    command,
+    exitCode: result.status ?? 1,
+  });
+  printRuntimeLaunchReport(report, optionFlag(options, 'json'));
+  return 1;
+}
+
+function runtimeLaunchCommand(target: string, cdpPort: number, chromeUserDataDir?: string): string {
+  const base = `metamask-recipe runtime-launch --adapter extension --target ${shellQuote(target)} --cdp-port ${cdpPort}`;
+  return chromeUserDataDir ? `${base} --chrome-user-data-dir ${shellQuote(chromeUserDataDir)}` : base;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/gu, `'\\''`)}'`;
+}
+
+function classifyRuntimeLaunchFailure(text: string, cdpPort: number, target: string, chromeUserDataDir?: string): { reason: string; fix: string } {
+  if (/Address already in use|Browser\.setDownloadBehavior|targets=0|CDP not reachable/iu.test(text)) {
+    return {
+      reason: 'cdp_port_or_profile_not_ready',
+      fix: `Stop existing Chrome processes using CDP port ${cdpPort} or profile ${chromeUserDataDir ?? `${recipeHarnessRoot()}/extension/runtime profile`}, then rerun: ${runtimeLaunchCommand(target, cdpPort, chromeUserDataDir)}`,
+    };
+  }
+  if (/No approved Chromium binary|Playwright Chromium is not installed|Could not resolve Playwright Chromium/iu.test(text)) {
+    return {
+      reason: 'chromium_not_ready',
+      fix: 'Set RECIPE_HARNESS_CHROME_BIN to an existing Chromium/Chrome executable, or install Playwright Chromium with human approval.',
+    };
+  }
+  if (/manifest\.json|No build|dist\/chrome/iu.test(text)) {
+    return {
+      reason: 'extension_dist_not_ready',
+      fix: 'Build dist/chrome first, then rerun runtime-launch.',
+    };
+  }
+  if (/wallet-fixture|fixture/iu.test(text)) {
+    return {
+      reason: 'wallet_fixture_not_ready',
+      fix: `${recipeRuntimeDirMessage()} must contain wallet-fixture.json with local development credentials; rerun recipe sync or create the fixture locally.`,
+    };
+  }
+  return {
+    reason: 'runtime_launch_failed',
+    fix: `Read ${recipeHarnessRoot()}/extension runtime-launch artifacts, then rerun: ${runtimeLaunchCommand(target, cdpPort, chromeUserDataDir)}`,
+  };
+}
+
+function recipeRuntimeDirMessage(): string {
+  return process.env.RECIPE_RUNTIME_DIR || 'temp/recipe/runtime';
+}
+
+function runtimeLaunchReport(status: 'pass' | 'fail', fields: Record<string, unknown>): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    status,
+    ...fields,
+  };
+}
+
+function printRuntimeLaunchReport(report: Record<string, unknown>, json: boolean): void {
+  if (json) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  const status = String(report.status).toUpperCase();
+  console.log(`${status} runtime-launch ${report.reason}`);
+  if (report.status === 'fail') console.log(`Fix: ${report.fix}`);
+  console.log(`Artifacts: ${report.artifactsDir}`);
+}
+
+function readJsonIfExists(file: string): unknown {
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function readTextIfExists(file: string): string {
+  if (!fs.existsSync(file)) return '';
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch {
+    return '';
+  }
 }
 
 async function handleRuntimeDecision({ options }: ParsedArgs): Promise<number> {

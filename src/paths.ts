@@ -12,6 +12,39 @@ import type {
 } from './types.ts';
 
 export const runnerDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const DEFAULT_RECIPE_RUNTIME_DIR = 'temp/recipe/runtime';
+export const DEFAULT_RECIPE_HARNESS_ROOT = 'temp/recipe/harness';
+
+export function recipeRuntimeDir() {
+  return process.env.RECIPE_RUNTIME_DIR || DEFAULT_RECIPE_RUNTIME_DIR;
+}
+
+export function recipeHarnessRoot() {
+  return process.env.RECIPE_HARNESS_ROOT || DEFAULT_RECIPE_HARNESS_ROOT;
+}
+
+export function recipeRuntimePath(projectRoot: string, ...segments: string[]) {
+  return path.join(projectRoot, recipeRuntimeDir(), ...segments);
+}
+
+export function recipeHarnessPath(projectRoot: string, ...segments: string[]) {
+  return path.join(projectRoot, recipeHarnessRoot(), ...segments);
+}
+
+export function walletFixturePath(projectRoot: string) {
+  return recipeRuntimePath(projectRoot, 'wallet-fixture.json');
+}
+
+export function extensionIdPath(projectRoot: string) {
+  return recipeRuntimePath(projectRoot, 'extension.id');
+}
+
+export function recipeWatchLogCandidates() {
+  return [
+    path.join(recipeRuntimeDir(), 'webpack.log'),
+    path.join(recipeRuntimeDir(), 'recipe-harness-webpack.log'),
+  ];
+}
 
 export function resolveLocalFarmslotRoot() {
   const candidates = [

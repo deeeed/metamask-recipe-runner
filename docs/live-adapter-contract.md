@@ -127,7 +127,7 @@ The CLI maps `--cdp-port` to `CDP_PORT`/`RECIPE_CDP_PORT` and maps `--launch-exi
 Currently implemented Extension actions:
 
 ```text
-ui.navigate                  # extension: hash/path/url
+ui.navigate                  # extension: page alias or hash/path/url
 metamask.perps.read_positions
 metamask.perps.read_orders
 metamask.perps.close_positions # primitive bulk close selected positions
@@ -143,7 +143,7 @@ ui.wait_for
 ui.screenshot
 ```
 
-Navigation is intentionally raw transport, not a semantic shortcut. Use `ui.navigate` with the actual React Native route/params or extension hash/url the app exposes.
+Navigation supports a small discoverable `page` alias set (`home`, `perps`, `perps-market`) plus raw extension hash/url fallback. Check the action manifest before hardcoding routes.
 
 Task-specific UI styling checks, such as one ticket proving a banner color or placement, must not be implemented as reusable `metamask.perps.*` actions. Use official `ui.wait_for` for reusable presence/absence checks plus screenshot/task-local validation evidence for that ticket.
 
@@ -164,7 +164,7 @@ node.android_device | ANDROID_DEVICE
 Currently implemented Mobile actions:
 
 ```text
-ui.navigate                  # mobile: route/screen + params
+ui.navigate                  # mobile: page alias or route/screen + params
 metamask.perps.read_positions
 metamask.perps.read_orders
 metamask.perps.close_positions # primitive bulk close selected positions
@@ -180,6 +180,6 @@ ui.wait_for
 ui.screenshot
 ```
 
-Navigation is intentionally raw transport, not a semantic shortcut. Use `ui.navigate` with the actual React Native route/params or extension hash/url the app exposes.
+Navigation supports a small discoverable `page` alias set (`home`, `perps`, `perps-market`) plus raw React Navigation route/params fallback. Check the action manifest before hardcoding routes.
 
 Read-only position checks use `Engine.context.PerpsController.getPositions()` through Hermes CDP. State-changing Perps actions use supported controller APIs (`placeOrder`, `closePositions`) through the same app bridge rather than mutating Redux/React/local storage. UI actions delegate to existing bridge capabilities such as `press-test-id` and `scroll-view`. Screenshot capture uses `xcrun simctl io <simulator> screenshot` for iOS simulator proof.

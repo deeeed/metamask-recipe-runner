@@ -8,16 +8,19 @@ Usage:
   mme-recipe status                  runtime-health (CDP/live)
   mme-recipe decision                runtime-decision (what next?)
   mme-recipe ready                   ensure one healthy extension home tab
-  mme-recipe reopen                  reopen/reload browser from temp/runtime
-  mme-recipe refresh                 incremental refresh-build then ready
+  mme-recipe watch                   start/reuse one webpack watcher for fast refresh
+  mme-recipe stop                    stop this checkout's watcher
+  mme-recipe reopen                  reopen/reload browser via harness helper
+  mme-recipe refresh                 fast refresh using an active watcher only
+  mme-recipe refresh:once            one-shot refresh-build helper, then ready
   mme-recipe rebuild                 alias for refresh
-  mme-recipe sidepanel [cycle|open]  use temp/runtime/sidepanel-toggle.sh
+  mme-recipe sidepanel [cycle|open]  use harness sidepanel helper
   mme-recipe actions [--json]
   mme-recipe doctor [--json]
   mme-recipe run <recipe.json> [args] run recipe with detected CDP/env
   mme-recipe <recipe.json> [args]    shortcut for run
 
-Detects Extension root, temp/runtime/agentic-runtime.*, CDP_PORT, WATCHER_PORT.
+Detects Extension root, temp/recipe/runtime/agentic-runtime.*, CDP_PORT, WATCHER_PORT.
 EOF
 }
 
@@ -75,8 +78,10 @@ infer_slot_number() {
 
 init_context() {
   root="$(find_extension_root)" || { echo "mme-recipe: run from a metamask-extension checkout" >&2; exit 2; }
-  runtime_json="$root/temp/runtime/agentic-runtime.json"
-  load_env_file "$root/temp/runtime/agentic-runtime.env"
+  runtime_dir="${RECIPE_RUNTIME_DIR:-temp/recipe/runtime}"
+  harness_root="${RECIPE_HARNESS_ROOT:-temp/recipe/harness}"
+  runtime_json="$root/$runtime_dir/agentic-runtime.json"
+  load_env_file "$root/$runtime_dir/agentic-runtime.env"
   load_env_file "$root/.js.env"
   load_env_file "$root/.env"
   load_env_file "$root/.env.local"
@@ -154,34 +159,204 @@ run_json_pretty() {
 log() { printf 'mme-recipe: %s\n' "$*" >&2; }
 need_cdp() { [ -n "${CDP_PORT:-}" ] || { echo "mme-recipe: CDP_PORT not found" >&2; exit 2; }; }
 
+harness_helper() {
+  local field="$1" fallback="$2" rel script manifest
+  manifest="$root/$harness_root/extension/manifest.json"
+  rel="$(json_field "$manifest" "runtimeHelpers.$field" || true)"
+  if [ -n "$rel" ]; then
+    case "$rel" in
+      /*) script="$rel" ;;
+      *) script="$root/$rel" ;;
+    esac
+  else
+    script="$root/$fallback"
+  fi
+  [ -f "$script" ] || { echo "mme-recipe: missing $field helper. Run: recipe sync" >&2; exit 1; }
+  printf '%s\n' "$script"
+}
+
 status() { init_context; need_cdp; run_json_pretty "$runner" runtime-health --adapter extension --target "$root" --cdp-port "$CDP_PORT" "$@"; }
-decision() { init_context; run_json_pretty "$runner" runtime-decision --adapter extension --target "$root" ${CDP_PORT:+--cdp-port "$CDP_PORT"} ${WATCHER_PORT:+--watch-log "$root/temp/runtime/webpack.log"} "$@"; }
+decision() { init_context; run_json_pretty "$runner" runtime-decision --adapter extension --target "$root" ${CDP_PORT:+--cdp-port "$CDP_PORT"} ${WATCHER_PORT:+--watch-log "$root/$runtime_dir/webpack.log"} "$@"; }
 ready() { init_context; need_cdp; exec "$runner" ensure-ready --adapter extension --target "$root" --cdp-port "$CDP_PORT" "$@"; }
 
 do_reopen() {
   init_context; need_cdp
-  local s="$root/temp/runtime/reopen-browser.sh"
-  [ -x "$s" ] || [ -f "$s" ] || { echo "mme-recipe: missing $s" >&2; exit 1; }
+  local s
+  s="$(harness_helper reopenBrowser "$runtime_dir/reopen-browser.sh")"
   log "reopen browser cdp=$CDP_PORT watcher=${WATCHER_PORT:-?}"
-  bash "$s" --repo "$root" --cdp-port "$CDP_PORT" ${WATCHER_PORT:+--watcher-port "$WATCHER_PORT"} "$@"
+  bash "$s" --repo "$root" --cdp-port "$CDP_PORT" --runtime-dir "$runtime_dir" ${WATCHER_PORT:+--watcher-port "$WATCHER_PORT"} "$@"
 }
 
-do_refresh() {
+watcher_pids() {
+  ps -axo pid=,command= | awk -v root="$root" '
+    index($0, root) &&
+    $0 ~ /\/(node|yarn)( |$)/ &&
+    $0 ~ /(yarn start|webpack --watch|development\/webpack\/launch\.ts --watch)/ { print $1 }
+  ' 2>/dev/null || true
+}
+
+do_watch() {
   init_context
-  local s="$root/temp/runtime/refresh-build.sh"
-  [ -x "$s" ] || [ -f "$s" ] || { echo "mme-recipe: missing $s" >&2; exit 1; }
-  log "incremental refresh watcher=${WATCHER_PORT:-?}"
+  local pids log_file
+  pids="$(watcher_pids)"
+  if [ -n "$pids" ]; then
+    log "watcher already running ($(pids_inline "$pids"))"
+    return 0
+  fi
+  log_file="$root/$runtime_dir/webpack.log"
+  mkdir -p "$(dirname "$log_file")"
+  log "starting watcher port=${WATCHER_PORT:-default} log=${log_file#$root/}"
+  (cd "$root" && env ${WATCHER_PORT:+PORT="$WATCHER_PORT"} yarn start > "$log_file" 2>&1 & echo $! > "$root/$runtime_dir/webpack.pid")
+  sleep 2
+  pids="$(watcher_pids)"
+  if [ -n "$pids" ]; then
+    log "watcher started ($(pids_inline "$pids")); use: recipe refresh"
+    return 0
+  fi
+  echo "mme-recipe: watcher did not start; tail ${log_file#$root/}" >&2
+  tail -20 "$log_file" >&2 2>/dev/null || true
+  return 1
+}
+
+pids_inline() {
+  printf '%s' "$1" | tr '\n' ' '
+}
+
+latest_source_stamp() {
+  node - "$root" <<'NODE'
+const { execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const root = process.argv[2];
+function lines(args) {
+  try { return execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).split('\n').filter(Boolean); }
+  catch { return []; }
+}
+const files = new Set([
+  ...lines(['diff', '--name-only', 'HEAD']),
+  ...lines(['ls-files', '--others', '--exclude-standard']),
+]);
+let best = { mtime: 0, file: '' };
+for (const rel of files) {
+  if (!/\.(tsx?|jsx?|mjs|cjs|json|scss|css)$/u.test(rel)) continue;
+  const abs = path.join(root, rel);
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
+  const mtime = fs.statSync(abs).mtimeMs;
+  if (mtime > best.mtime) best = { mtime, file: rel };
+}
+if (best.mtime) console.log(`${Math.floor(best.mtime)}\t${best.file}`);
+NODE
+}
+
+latest_dist_mtime_ms() {
+  node - "$root" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const root = process.argv[2];
+const dir = path.join(root, 'dist/chrome');
+let best = 0;
+function walk(p) {
+  if (!fs.existsSync(p)) return;
+  for (const name of fs.readdirSync(p)) {
+    const abs = path.join(p, name);
+    const st = fs.statSync(abs);
+    if (st.isDirectory()) walk(abs);
+    else if (st.isFile()) best = Math.max(best, st.mtimeMs);
+  }
+}
+walk(dir);
+console.log(Math.floor(best));
+NODE
+}
+
+do_stop() {
+  init_context
+  local pids
+  pids="$(watcher_pids)"
+  if [ -z "$pids" ]; then
+    log "no watcher running for this checkout"
+    rm -f "$root/$runtime_dir/webpack.pid"
+    return 0
+  fi
+  log "stopping watcher ($(pids_inline "$pids"))"
+  printf '%s
+' "$pids" | xargs kill 2>/dev/null || true
+  sleep 2
+  pids="$(watcher_pids)"
+  if [ -n "$pids" ]; then
+    log "force stopping watcher ($(pids_inline "$pids"))"
+    printf '%s
+' "$pids" | xargs kill -9 2>/dev/null || true
+  fi
+  rm -f "$root/$runtime_dir/webpack.pid"
+}
+
+do_refresh_once() {
+  init_context
+  local s
+  s="$(harness_helper refreshBuild "$runtime_dir/refresh-build.sh")"
+  log "one-shot refresh watcher=${WATCHER_PORT:-?}"
   bash "$s" --repo "$root" ${WATCHER_PORT:+--watcher-port "$WATCHER_PORT"} "$@"
   if [ -n "${CDP_PORT:-}" ]; then
     "$runner" ensure-ready --adapter extension --target "$root" --cdp-port "$CDP_PORT" --json || true
   fi
 }
 
+do_refresh() {
+  init_context
+  local pids stamp src_mtime src_file dist_mtime timeout elapsed
+  pids="$(watcher_pids)"
+  if [ -z "$pids" ]; then
+    echo "mme-recipe: no active watcher found; not starting a full rebuild from refresh" >&2
+    echo "mme-recipe: start the slot watcher, or run explicit heavy fallback: recipe refresh:once" >&2
+    return 2
+  fi
+
+  stamp="$(latest_source_stamp || true)"
+  if [ -z "$stamp" ]; then
+    log "watcher active ($(pids_inline "$pids")); no changed source files"
+    [ -n "${CDP_PORT:-}" ] && "$runner" ensure-ready --adapter extension --target "$root" --cdp-port "$CDP_PORT" --json || true
+    return
+  fi
+  src_mtime="${stamp%%$'\t'*}"
+  src_file="${stamp#*$'\t'}"
+  timeout="${RECIPE_REFRESH_TIMEOUT:-90}"
+  log "watcher active ($(pids_inline "$pids")); waiting for incremental build of $src_file"
+
+  for elapsed in $(seq 0 "$timeout"); do
+    dist_mtime="$(latest_dist_mtime_ms)"
+    if [ "$dist_mtime" -ge "$src_mtime" ]; then
+      log "dist/chrome timestamp is current (${elapsed}s); checking runtime"
+      if [ -n "${CDP_PORT:-}" ]; then
+        local ready_json
+        ready_json="$($runner ensure-ready --adapter extension --target "$root" --cdp-port "$CDP_PORT" --json 2>/dev/null || true)"
+        printf '%s
+' "$ready_json"
+        if printf '%s' "$ready_json" | grep -q '"ready"[[:space:]]*:[[:space:]]*true'; then
+          log "runtime ready; run: recipe reopen only if the visible page is stale"
+          return
+        fi
+        echo "mme-recipe: dist is current but runtime is unhealthy; run: recipe reopen, then recipe status" >&2
+        return 2
+      fi
+      log "dist/chrome timestamp is current; run: recipe reopen"
+      return
+    fi
+    if [ $elapsed -gt 0 ] && [ $((elapsed % 10)) -eq 0 ]; then
+      log "still waiting for watcher... (${elapsed}s)"
+    fi
+    sleep 1
+  done
+
+  echo "mme-recipe: watcher did not update dist/chrome within ${timeout}s; try: recipe refresh:once" >&2
+  return 2
+}
+
 sidepanel() {
   init_context; need_cdp
-  local s="$root/temp/runtime/sidepanel-toggle.sh"
-  [ -x "$s" ] || [ -f "$s" ] || { echo "mme-recipe: missing $s" >&2; exit 1; }
-  bash "$s" "${1:-cycle}" --cdp-port "$CDP_PORT"
+  local s
+  s="$(harness_helper sidepanelToggle "$runtime_dir/sidepanel-toggle.sh")"
+  bash "$s" "${1:-cycle}" --cdp-port "$CDP_PORT" --agent-dir "$root/$runtime_dir"
 }
 
 run_recipe() {
@@ -202,6 +377,8 @@ interactive() {
       status) run_json_pretty "$runner" runtime-health --adapter extension --target "$root" --cdp-port "$CDP_PORT" ;;
       decision) run_json_pretty "$runner" runtime-decision --adapter extension --target "$root" ${CDP_PORT:+--cdp-port "$CDP_PORT"} ;;
       ready) "$runner" ensure-ready --adapter extension --target "$root" --cdp-port "$CDP_PORT" ;;
+      watch) do_watch ;;
+      stop) do_stop ;;
       reopen) do_reopen ;;
       refresh) do_refresh ;;
       sidepanel) sidepanel cycle ;;
@@ -221,8 +398,11 @@ case "$cmd" in
   status|health) status "$@" ;;
   decision|decide) decision "$@" ;;
   ready|ensure-ready) ready "$@" ;;
+  watch|start-watch|watcher) do_watch "$@" ;;
+  stop|stop-watch|stop-watcher) do_stop "$@" ;;
   reopen|reload|browser) do_reopen "$@" ;;
   refresh|rebuild|build) do_refresh "$@" ;;
+  refresh:once|rebuild:once|build:once) do_refresh_once "$@" ;;
   sidepanel) sidepanel "$@" ;;
   actions) init_context; run_json_pretty "$runner" actions --adapter extension "$@" ;;
   doctor) init_context; run_json_pretty "$runner" doctor --adapter extension --target "$root" "$@" ;;

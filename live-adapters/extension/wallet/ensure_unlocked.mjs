@@ -1,12 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { runAdapter, withExtensionPage } from '../platform/cdp.mjs';
+import { walletFixturePath } from '../../../src/paths.ts';
 
 async function fixturePassword(projectRoot) {
   const candidates = [
-    path.join(projectRoot, 'temp/runtime/wallet-fixture.json'),
-    path.join(projectRoot, '.agent/wallet-fixture.json'),
-    path.join(projectRoot, 'scripts/perps/agentic/wallet-fixture.json'),
+    walletFixturePath(projectRoot),
   ];
   for (const candidate of candidates) {
     try {

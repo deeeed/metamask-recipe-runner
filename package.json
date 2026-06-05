@@ -1,7 +1,6 @@
 {
-  "name": "@metamask/recipe-runner",
+  "name": "@deeeed/metamask-recipe-runner",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
     "metamask-recipe": "./bin/metamask-recipe"
@@ -16,11 +15,11 @@
   },
   "dependencies": {
     "@farmslot/protocol": "^0.6.0",
-    "@farmslot/recipe-harness": "^0.2.0"
+    "@farmslot/recipe-harness": "^0.2.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   },
   "main": "./src/index.ts",
@@ -30,5 +29,21 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     }
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "src",
+    "manifests",
+    "recipes",
+    "live-adapters",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "packageManager": "yarn@4.5.3"
 }

@@ -1,11 +1,11 @@
 # MetaMask Recipe Runner
 
-MetaMask-specific runner package for Farmslot Recipe Protocol v1. Canonical protocol spec: Farmslot `docs/RECIPE-PROTOCOL-V1.md`; this runner consumes the published `@farmslot/protocol` and `@farmslot/recipe-harness` packages, with an explicit local override only for Farmslot co-development.
+MetaMask-specific runner package for Recipe Protocol v1. This runner consumes the published `@farmslot/protocol` and `@farmslot/recipe-harness` packages, with an explicit local override only for protocol co-development.
 
 This project owns the MetaMask action catalog, manifests, and live adapters for
 MetaMask Mobile and Extension recipe validation. It intentionally stays outside
 `metamask-skills`: skills are thin UX wrappers that resolve this project, install
-it into `.agent/recipe-harness/<adapter>/runner/`, and call `bin/metamask-recipe`.
+it into `temp/recipe/harness/<adapter>/runner/`, and call `bin/metamask-recipe`.
 
 ## Boundary
 
@@ -68,8 +68,9 @@ A normal checkout/install should resolve Farmslot through package dependencies:
 `@farmslot/protocol` and `@farmslot/recipe-harness`. `FARMSLOT_ROOT` is only a
 local-development override used while changing Farmslot and this runner together.
 
-Skills discover this runner through `METAMASK_RECIPE_RUNNER_SOURCE` or a sibling
-checkout named `metamask-recipe-runner` next to `metamask-skills`.
+Skills resolve this runner in this order: explicit local override (`METAMASK_RECIPE_RUNNER_SOURCE` / `RECIPE_RUNNER_SOURCE`), sibling checkout named `metamask-recipe-runner`, npm package, then git fallback.
+
+During the ADR-58 pilot the npm package is published under Arthur's personal namespace as `@deeeed/metamask-recipe-runner` so reviewers can reproduce the skills without a local checkout. If ADR-58 is accepted, ownership should migrate to a MetaMask/Consensys namespace and release process.
 
 ## Commands
 

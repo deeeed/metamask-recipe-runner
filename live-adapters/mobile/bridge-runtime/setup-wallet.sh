@@ -12,8 +12,8 @@
 #     "password": "yourpassword",
 #     "accounts": [
 #       { "type": "mnemonic", "value": "word1 word2 ...", "name": "Primary" },
-#       { "type": "privateKey", "value": "0xabc...", "name": "Trading" },
-#       { "type": "privateKey", "value": "0xdef...", "name": "MYXTrading" }
+#       { "type": "privateKey", "value": "0xabc...", "name": "dev1" },
+#       { "type": "privateKey", "value": "0xdef...", "name": "dev2" }
 #     ],
 #     "settings": { "metametrics": true, "skipGtmModals": true, "skipPerpsTutorial": true, "autoLockNever": true, "deviceAuthEnabled": true }
 #   }
@@ -54,11 +54,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # -- Resolve + validate fixture --
-[ -z "$FIXTURE_PATH" ] && FIXTURE_PATH="${WALLET_FIXTURE:-.agent/wallet-fixture.json}"
+[ -z "$FIXTURE_PATH" ] && FIXTURE_PATH="${WALLET_FIXTURE:-${RECIPE_RUNTIME_DIR:-temp/recipe/runtime}/wallet-fixture.json}"
 
 if [ ! -f "$FIXTURE_PATH" ]; then
   echo "ERROR: Fixture not found: $FIXTURE_PATH"
-  echo "  create .agent/wallet-fixture.json or temp/runtime/wallet-fixture.json"
+  echo "  create ${RECIPE_RUNTIME_DIR:-temp/recipe/runtime}/wallet-fixture.json"
   exit 1
 fi
 echo "Reading fixture: $FIXTURE_PATH"

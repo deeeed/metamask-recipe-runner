@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { recipeWatchLogCandidates } from './paths.ts';
 
 /**
  * Deterministic runtime-readiness decision for the MetaMask Extension.
@@ -120,7 +121,7 @@ const INSTALL_MARKERS = ['node_modules/.yarn-state.yml', '.yarn/install-state.gz
 const WEBPACK_DIRECT_INPUTS = ['package.json', 'yarn.lock', '.yarnrc.yml', '.tool-versions'];
 const WEBPACK_RECURSIVE_INPUTS = ['development/webpack'];
 const WEBPACK_CACHE_DIR = 'node_modules/.cache/webpack';
-const WATCH_LOG_CANDIDATES = ['temp/runtime/webpack.log', 'temp/runtime/recipe-harness-webpack.log'];
+const WATCH_LOG_CANDIDATES = recipeWatchLogCandidates();
 
 // ── git helpers ───────────────────────────────────────────────────────────────
 function git(target: string, args: string[]): string | null {

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { manifestPath, readJson, runnerDir } from './paths.ts';
+import { manifestPath, readJson, recipeHarnessRoot, recipeRuntimeDir, runnerDir } from './paths.ts';
 import type { MetaMaskDoctorReport, MetaMaskRecipeAdapter } from './types.ts';
 
 export function repoShape(target: string): Record<string, unknown> {
@@ -21,11 +21,10 @@ export function repoShape(target: string): Record<string, unknown> {
     agenticService: exists('app/core/AgenticService/AgenticService.ts'),
     mobileProductHarness: false,
     mobileBridgeScript: true,
-    extensionRuntime: exists('temp/agentic/recipes') || exists('.agent/recipe-harness/extension'),
-    injectedHarness: exists('.agent/recipe-harness/mobile') || exists('.agent/recipe-harness/extension'),
+    extensionRuntime: exists(`${recipeHarnessRoot()}/extension`),
+    injectedHarness: exists(`${recipeHarnessRoot()}/mobile`) || exists(`${recipeHarnessRoot()}/extension`),
     walletFixture:
-      exists('.agent/wallet-fixture.json') ||
-      exists('temp/runtime/wallet-fixture.json'),
+      exists(`${recipeRuntimeDir()}/wallet-fixture.json`),
   };
 }
 
@@ -64,8 +63,7 @@ function readPackageInfo(target: string) {
 
 export function fixtureSummary(target: string): Record<string, unknown> {
   const candidates = [
-    '.agent/wallet-fixture.json',
-    'temp/runtime/wallet-fixture.json',
+    `${recipeRuntimeDir()}/wallet-fixture.json`,
   ];
   const rel = candidates.find((candidate) => fs.existsSync(path.join(target, candidate)));
   if (!rel) return { status: 'missing', path: null };

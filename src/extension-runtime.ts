@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { importFarmslotHarnessRuntimeBrowserExtension, importFarmslotHarnessRuntimeCdp, resolveLocalFarmslotRoot, resolveRequiredLocalFarmslotRoot, runnerDir } from './paths.ts';
+import { importFarmslotHarnessRuntimeBrowserExtension, importFarmslotHarnessRuntimeCdp, recipeRuntimeDir, resolveLocalFarmslotRoot, resolveRequiredLocalFarmslotRoot, runnerDir } from './paths.ts';
 
 // Runtime health uses package dependencies. Launching a canonical Farmslot browser
 // remains a dev-only path because it needs pool/project scripts from a checkout.
@@ -63,7 +63,7 @@ export async function prepareExtensionRuntime(
       cdpPort,
       slotId: slot.id,
       validationRuntimeDir:
-        options.validationRuntimeDir ?? `temp/.recipe-validation-${cdpPort}`,
+        options.validationRuntimeDir ?? `${recipeRuntimeDir()}/validation-${cdpPort}`,
     });
   }
   const health = await assertHealthyExtensionRuntime({

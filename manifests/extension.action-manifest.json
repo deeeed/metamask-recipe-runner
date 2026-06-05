@@ -81,6 +81,70 @@
         }
       ]
     },
+    "ui.navigate": {
+      "description": "Navigate with either raw extension url/hash/path or a small stable page alias. Discover supported aliases here before hardcoding routes.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "enum": [
+              "home",
+              "perps",
+              "perps-market"
+            ],
+            "description": "Small stable page aliases; use raw route/hash when you need a route outside this list."
+          },
+          "market": {
+            "type": "string",
+            "description": "Market symbol for page=perps-market, e.g. ETH."
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Alias for market."
+          },
+          "url": {
+            "type": "string",
+            "description": "Raw extension URL."
+          },
+          "hash": {
+            "type": "string",
+            "description": "Raw extension hash, e.g. #/?tab=perps."
+          },
+          "path": {
+            "type": "string",
+            "description": "Alias for hash."
+          }
+        }
+      },
+      "examples": [
+        {
+          "description": "Open Perps through the stable alias",
+          "node": {
+            "action": "ui.navigate",
+            "page": "perps",
+            "intent": "Open Perps"
+          }
+        },
+        {
+          "description": "Open a Perps market through the stable alias",
+          "node": {
+            "action": "ui.navigate",
+            "page": "perps-market",
+            "market": "ETH",
+            "intent": "Open ETH Perps market"
+          }
+        },
+        {
+          "description": "Fallback to a raw extension hash when no alias exists",
+          "node": {
+            "action": "ui.navigate",
+            "hash": "#/?tab=perps",
+            "intent": "Open a raw extension route"
+          }
+        }
+      ]
+    },
     "ui.press": {
       "description": "Press/tap/click a UI target through the platform adapter.",
       "examples": [
